@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloudflare Worker Bouncer</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --cf: #b39dff;
+    --home: #5fd4e6;
+    --good: #6fe08a;
+    --bad: #ff7a6b;
+    --metric: #f2b45e;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .track  { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .t-pass { stroke: var(--cf); stroke-opacity: .4; }
+  .t-ban  { stroke: var(--bad); stroke-opacity: .45; }
+  .t-sync { stroke: var(--good); stroke-opacity: .5; }
+  .t-tun  { stroke: var(--cf); stroke-opacity: .65; stroke-dasharray: 6 6; }
+  .t-met  { stroke: var(--metric); stroke-opacity: .7; stroke-dasharray: 5 6; }
+
+  .chip rect { fill: #0d141d; }
+  .chip .t { font-size: 16px; font-weight: 600; }
+  .chip .s { font-size: 12.5px; fill: var(--muted); }
+
+  .limit rect { fill: var(--panel); stroke: var(--line); }
+  .limit .v { font-size: 19px; font-weight: 600; }
+  .limit .s { font-size: 12.5px; fill: var(--muted); }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="How the Cloudflare Worker bouncer works. A visitor's request reaches Cloudflare's edge, where the Worker on route whoami-cf.linuxcloudhacks.ovh reads the real IP, country and network from Cloudflare itself, looks them up in the Workers KV store and, if banned, answers with a Turnstile captcha or a 403 block page; otherwise the request goes down the Cloudflare Tunnel to Caddy and whoami on the homelab. On the homelab, the worker bouncer polls CrowdSec every 10 seconds, keeps only local decisions (crowdsec and cscli) because the 15,000-IP community blocklist would need 15,000 KV writes and the free plan allows 1,000 a day, and writes them through the Cloudflare API to KV. The Worker writes one data point per request to Analytics Engine, which the bouncer reads back for metrics. Free plan limits: 100,000 Worker requests a day, 1,000 KV writes a day, Analytics Engine must be enabled, and the route must be set to fail open again after every bouncer restart.">
+  <defs>
+    <linearGradient id="gCf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1830"/><stop offset="1" stop-color="#10141f"/>
+    </linearGradient>
+    <linearGradient id="gHome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gEngine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#13281c"/><stop offset="1" stop-color="#0e1a15"/>
+    </linearGradient>
+    <marker id="aPass" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--cf)"/>
+    </marker>
+    <marker id="aBan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--bad)"/>
+    </marker>
+    <marker id="aSync" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--good)"/>
+    </marker>
+    <marker id="aMet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--metric)"/>
+    </marker>
+    <symbol id="person" viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M4 21c0-4.4 3.6-7.2 8-7.2s8 2.8 8 7.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <path id="mPass" d="M250 310 H1150"/>
+    <path id="mBan" d="M250 310 H880 V250 H262"/>
+    <path id="mSync" d="M1325 500 V660 H600 V500"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--cf)">CROWDSEC LAB · PART 3 · CLOUDFLARE</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">The Worker checks every visitor first</text>
+  </g>
+  <g data-step="1">
+    <circle cx="1108" cy="73" r="5" fill="var(--cf)"/>
+    <text x="1122" y="78" font-size="14" class="muted">request</text>
+  </g>
+  <g data-step="2">
+    <circle cx="1208" cy="73" r="5" fill="var(--bad)"/>
+    <text x="1222" y="78" font-size="14" class="muted">banned</text>
+  </g>
+  <g data-step="3">
+    <circle cx="1302" cy="73" r="5" fill="var(--good)"/>
+    <text x="1316" y="78" font-size="14" class="muted">ban sync</text>
+  </g>
+  <g data-step="5">
+    <circle cx="1410" cy="73" r="5" fill="var(--metric)"/>
+    <text x="1424" y="78" font-size="14" class="muted">metrics</text>
+  </g>
+
+  <!-- ============ BACKGROUNDS ============ -->
+  <g data-step="1">
+    <rect x="300" y="180" width="760" height="340" rx="18" fill="url(#gCf)" stroke="#3c3466"/>
+    <text x="326" y="210" class="caps" style="fill:var(--cf)">CLOUDFLARE EDGE</text>
+    <rect x="326" y="222" width="708" height="174" rx="14" fill="#0e1019" fill-opacity=".7" stroke="#3c3466" stroke-dasharray="4 5"/>
+    <text x="1018" y="210" font-size="13" class="mono muted" text-anchor="end">Worker · route whoami-cf.linuxcloudhacks.ovh/*</text>
+
+    <rect x="1110" y="180" width="430" height="340" rx="18" fill="url(#gHome)" stroke="#23405a"/>
+    <text x="1136" y="210" class="caps dim">HOMELAB</text>
+  </g>
+
+  <!-- ============ TRACKS + TRAFFIC ============ -->
+  <g data-step="1">
+    <path class="track t-pass" d="M250 310 H1060"/>
+    <path class="track t-tun" d="M1060 310 H1140" marker-end="url(#aPass)"/>
+    <text x="1085" y="296" font-size="11.5" text-anchor="middle" style="fill:var(--cf)">tunnel</text>
+    <circle r="4.2" fill="var(--cf)"><animateMotion dur="3s" repeatCount="indefinite" begin="0s"><mpath href="#mPass"/></animateMotion></circle>
+    <circle r="4.2" fill="var(--cf)"><animateMotion dur="3s" repeatCount="indefinite" begin="-1.5s"><mpath href="#mPass"/></animateMotion></circle>
+  </g>
+  <g data-step="2">
+    <path class="track t-ban" d="M880 262 V250 H262" marker-end="url(#aBan)"/>
+    <text x="580" y="240" font-size="13" font-weight="600" text-anchor="middle" style="fill:var(--bad)">captcha (or 403 block page) — homelab never sees it</text>
+    <circle r="4.6" fill="var(--bad)">
+      <animateMotion dur="3.4s" repeatCount="indefinite" begin="-0.8s"><mpath href="#mBan"/></animateMotion>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.9;1" dur="3.4s" repeatCount="indefinite" begin="-0.8s"/>
+    </circle>
+  </g>
+  <g data-step="3">
+    <path class="track t-sync" d="M1325 500 V660 H1064"/>
+    <path class="track t-sync" d="M700 660 H644"/>
+    <path class="track t-sync" d="M600 600 V504" marker-end="url(#aSync)"/>
+    <circle r="4.2" fill="var(--good)"><animateMotion dur="3.2s" repeatCount="indefinite" begin="0s"><mpath href="#mSync"/></animateMotion></circle>
+    <circle r="4.2" fill="var(--good)"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.6s"><mpath href="#mSync"/></animateMotion></circle>
+    <path class="track t-sync" d="M665 400 V428" marker-end="url(#aSync)" stroke-dasharray="3 4"/>
+  </g>
+  <g data-step="5">
+    <path class="track t-met" d="M930 400 V428" marker-end="url(#aMet)"/>
+    <path class="track t-met" d="M1030 465 H1146" marker-end="url(#aMet)"/>
+    <text x="1088" y="455" font-size="11.5" text-anchor="middle" style="fill:var(--metric)">SQL</text>
+  </g>
+
+  <!-- ============ 1 · REQUEST PATH ============ -->
+  <g data-step="1">
+    <rect x="60" y="250" width="190" height="120" rx="14" fill="var(--panel2)" stroke="#3c3466"/>
+    <use href="#person" x="80" y="268" width="34" height="34" style="color:var(--cf)"/>
+    <text x="124" y="292" font-size="19" font-weight="600">visitor</text>
+    <text x="80" y="330" font-size="14" class="mono">203.0.113.7</text>
+    <text x="80" y="352" font-size="12" class="muted">example IP</text>
+
+    <g class="chip"><rect x="350" y="270" width="190" height="80" rx="12" stroke="#3c3466"/>
+      <text x="366" y="298" class="t">1 · real IP</text>
+      <text x="366" y="320" class="s">from Cloudflare itself,</text>
+      <text x="366" y="337" class="s">+ country, network</text></g>
+    <g class="chip"><rect x="570" y="270" width="190" height="80" rx="12" stroke="#3c3466"/>
+      <text x="586" y="298" class="t">2 · look it up</text>
+      <text x="586" y="320" class="s">IP, country and AS</text>
+      <text x="586" y="337" class="s">in the KV ban list</text></g>
+
+    <g class="chip"><rect x="1140" y="270" width="370" height="80" rx="12" stroke="#2a5566"/>
+      <text x="1160" y="300" class="t">Caddy → whoami</text>
+      <text x="1160" y="324" class="s mono" style="fill:var(--cf)">:80 · real IP from CF-Connecting-IP</text></g>
+  </g>
+
+  <!-- ============ 2 · THE DECISION ============ -->
+  <g data-step="2">
+    <g class="chip"><rect x="790" y="262" width="220" height="96" rx="12" stroke="var(--bad)" stroke-opacity=".8"/>
+      <text x="808" y="292" class="t">3 · banned?</text>
+      <text x="808" y="316" class="s"><tspan style="fill:var(--bad)" font-weight="600">yes</tspan> → challenge here</text>
+      <text x="808" y="336" class="s"><tspan style="fill:var(--cf)" font-weight="600">no</tspan> → down the tunnel</text></g>
+  </g>
+
+  <!-- ============ 3 · BAN SYNC ============ -->
+  <g data-step="3">
+    <g class="chip"><rect x="560" y="430" width="210" height="70" rx="12" stroke="var(--good)" stroke-opacity=".7"/>
+      <text x="578" y="458" class="caps" font-size="10.5" style="fill:var(--good)">WORKERS KV</text>
+      <text x="578" y="482" class="s">the ban list at the edge</text></g>
+
+    <g class="chip"><rect x="1140" y="370" width="370" height="56" rx="12" stroke="#2c5a3e"/>
+      <text x="1160" y="396" class="t">CrowdSec engine</text>
+      <text x="1490" y="396" class="s" text-anchor="end">decisions</text>
+      <text x="1160" y="415" class="s">local detections + manual bans</text></g>
+    <g class="chip"><rect x="1140" y="440" width="370" height="60" rx="12" stroke="#2c5a3e"/>
+      <text x="1160" y="466" class="t">Worker bouncer</text>
+      <text x="1490" y="466" class="s mono" text-anchor="end">every 10 s</text>
+      <text x="1160" y="486" class="s">syncs bans to Cloudflare</text></g>
+
+    <rect x="330" y="600" width="310" height="120" rx="14" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="354" y="632" class="caps dim">CLOUDFLARE API</text>
+    <text x="354" y="662" font-size="17" font-weight="600">writes each ban to KV</text>
+    <text x="354" y="686" font-size="13" class="muted">copied to every edge location</text>
+    <text x="354" y="705" font-size="13" class="muted">~10–60 s after the decision</text>
+  </g>
+
+  <!-- ============ 4 · LOCAL DECISIONS ONLY ============ -->
+  <g data-step="4">
+    <rect x="700" y="590" width="364" height="150" rx="14" fill="url(#gEngine)" stroke="#2c5a3e"/>
+    <text x="724" y="622" class="caps" style="fill:var(--good)">FILTER</text>
+    <text x="1040" y="622" font-size="12" class="mono muted" text-anchor="end">only_include_decisions_from</text>
+    <text x="724" y="654" font-size="14.5"><tspan style="fill:var(--good)" font-weight="700">✓ </tspan>crowdsec, cscli — your own bans</text>
+    <text x="742" y="674" font-size="12.5" class="muted">a few a day</text>
+    <text x="724" y="702" font-size="14.5"><tspan style="fill:var(--bad)" font-weight="700">✗ </tspan>CAPI — 15,000 community IPs</text>
+    <text x="742" y="722" font-size="12.5" class="muted">15,000 writes vs 1,000 allowed a day</text>
+  </g>
+
+  <!-- ============ 5 · METRICS LOOP ============ -->
+  <g data-step="5">
+    <g class="chip"><rect x="820" y="430" width="210" height="70" rx="12" stroke="var(--metric)" stroke-opacity=".7"/>
+      <text x="838" y="458" class="caps" font-size="10.5" style="fill:var(--metric)">ANALYTICS ENGINE</text>
+      <text x="838" y="482" class="s">1 data point per request</text></g>
+    <text x="1310" y="548" font-size="12.5" text-anchor="end" style="fill:var(--metric)">processed / dropped → cscli metrics, console</text>
+  </g>
+
+  <!-- ============ 6 · FREE-PLAN LIMITS ============ -->
+  <g data-step="6">
+    <text x="60" y="788" class="caps dim">FREE PLAN · KNOW THE LIMITS</text>
+    <g class="limit">
+      <rect x="60" y="800" width="355" height="66" rx="12"/>
+      <text x="82" y="830" class="v">100,000 requests/day</text>
+      <text x="82" y="852" class="s">put the Worker only on routes that need it</text>
+    </g>
+    <g class="limit">
+      <rect x="435" y="800" width="355" height="66" rx="12"/>
+      <text x="457" y="830" class="v">1,000 KV writes/day</text>
+      <text x="457" y="852" class="s">so: local decisions only</text>
+    </g>
+    <g class="limit">
+      <rect x="810" y="800" width="355" height="66" rx="12"/>
+      <text x="832" y="830" class="v">Analytics Engine on</text>
+      <text x="832" y="852" class="s">otherwise Cloudflare refuses the Worker</text>
+    </g>
+    <g class="limit">
+      <rect x="1185" y="800" width="355" height="66" rx="12"/>
+      <text x="1207" y="830" class="v">Fail open</text>
+      <text x="1207" y="852" class="s">set it again after every bouncer restart</text>
+    </g>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+      if (e.key === "ArrowLeft") go(-1);
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

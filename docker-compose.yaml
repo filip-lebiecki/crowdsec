@@ -1,0 +1,27 @@
+networks:
+  demo:
+    name: crowdsec_demo
+
+services:
+  caddy:
+    container_name: demo-caddy
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./logs:/var/log/caddy
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [demo]
+
+  whoami:
+    container_name: demo-whoami
+    image: traefik/whoami:v1.11.0
+    restart: unless-stopped
+    networks: [demo]
+
+volumes:
+  caddy_data:
+  caddy_config:

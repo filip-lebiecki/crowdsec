@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAW vs Filter</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --direct: #5fd4e6;
+    --router: #f2b45e;
+    --good: #6fe08a;
+    --bad: #ff7a6b;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .track { fill: none; stroke-width: 2; stroke-linecap: round; stroke: var(--direct); stroke-opacity: .32; }
+  .stage rect { fill: url(#gRouter); stroke: #5a4830; }
+  .stage .n { font-size: 11px; letter-spacing: 2.2px; font-weight: 600; fill: var(--router); }
+  .stage .t { font-size: 18px; font-weight: 600; }
+  .stage .s { font-size: 13px; fill: var(--muted); }
+  .pro { font-size: 16px; }
+  .pro tspan.m { fill: var(--good); font-weight: 700; }
+  .con { font-size: 16px; }
+  .con tspan.m { fill: var(--bad); font-weight: 700; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="How a packet moves through the MikroTik router. A packet from the internet first hits RAW prerouting, before anything else happens; then connection tracking records the flow; then NAT applies the port forward; then the filter table's input or forward chain; and only then does it reach the homelab. The CrowdSec bouncer drops banned IPs in RAW, so a banned packet never gets tracked, never gets NAT and never takes a connection-table entry. Dropping in filter would do all that work first, but filter can match connection state, which RAW cannot. For a ban, RAW wins.">
+  <defs>
+    <linearGradient id="gRouter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231d15"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <linearGradient id="gRaw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#13281c"/><stop offset="1" stop-color="#0e1a15"/>
+    </linearGradient>
+    <linearGradient id="gFilter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#281515"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <marker id="aTrack" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--direct)" fill-opacity=".6"/>
+    </marker>
+    <symbol id="globe" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 12h18M5 7h14M5 17h14" stroke="currentColor" stroke-width="1.2"/>
+    </symbol>
+    <path id="mAll" d="M250 410 H1400"/>
+    <path id="mDrop" d="M250 410 H335"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--router)">CROWDSEC LAB · PART 2 · INSIDE THE ROUTER</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">Drop it in RAW, before anything else</text>
+  </g>
+  <g data-step="4">
+    <circle cx="1270" cy="73" r="5" fill="var(--direct)"/>
+    <text x="1284" y="78" font-size="14" class="muted">normal packet</text>
+  </g>
+  <g data-step="5">
+    <circle cx="1420" cy="73" r="5" fill="var(--bad)"/>
+    <text x="1434" y="78" font-size="14" class="muted">banned IP</text>
+  </g>
+
+  <!-- ============ TRACK + TRAFFIC (under the stages) ============ -->
+  <g data-step="1">
+    <path class="track" d="M250 410 H296" marker-end="url(#aTrack)"/>
+  </g>
+  <g data-step="3">
+    <path class="track" d="M550 410 H596" marker-end="url(#aTrack)"/>
+  </g>
+  <g data-step="4">
+    <path class="track" d="M850 410 H896" marker-end="url(#aTrack)"/>
+    <path class="track" d="M1100 410 H1146" marker-end="url(#aTrack)"/>
+    <path class="track" d="M1350 410 H1396" marker-end="url(#aTrack)"/>
+    <circle r="4.2" fill="var(--direct)"><animateMotion dur="3.4s" repeatCount="indefinite" begin="0s"><mpath href="#mAll"/></animateMotion></circle>
+    <circle r="4.2" fill="var(--direct)"><animateMotion dur="3.4s" repeatCount="indefinite" begin="-1.7s"><mpath href="#mAll"/></animateMotion></circle>
+  </g>
+  <g data-step="5">
+    <circle r="4.6" fill="var(--bad)">
+      <animateMotion dur="1.8s" repeatCount="indefinite" begin="-0.4s"><mpath href="#mDrop"/></animateMotion>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="1.8s" repeatCount="indefinite" begin="-0.4s"/>
+    </circle>
+  </g>
+
+  <!-- ============ 1 · PACKET IN ============ -->
+  <g data-step="1">
+    <rect x="60" y="330" width="190" height="160" rx="16" fill="var(--panel)" stroke="var(--line)"/>
+    <use href="#globe" x="84" y="350" width="30" height="30" style="color:var(--muted)"/>
+    <text x="84" y="412" font-size="20" font-weight="600">internet</text>
+    <text x="84" y="436" font-size="13" class="muted">a packet arrives</text>
+    <text x="84" y="456" font-size="13" class="muted">on a WAN port</text>
+  </g>
+
+  <!-- ============ 2 · RAW ============ -->
+  <g data-step="2">
+    <rect x="300" y="330" width="250" height="160" rx="16" fill="url(#gRaw)" stroke="#2c5a3e"/>
+    <text x="324" y="360" font-size="11" letter-spacing="2.2" font-weight="600" style="fill:var(--good)">1 · RAW</text>
+    <text x="324" y="392" font-size="18" font-weight="600">prerouting</text>
+    <text x="324" y="416" font-size="13" class="muted">first stop,</text>
+    <text x="324" y="434" font-size="13" class="muted">nothing done yet</text>
+  </g>
+
+  <!-- ============ 3 · CONNECTION TRACKING ============ -->
+  <g data-step="3">
+    <g class="stage"><rect x="600" y="330" width="250" height="160" rx="16"/>
+      <text x="624" y="360" class="n">2 · CONNTRACK</text>
+      <text x="624" y="392" class="t">connection tracking</text>
+      <text x="624" y="416" class="s">remembers every flow:</text>
+      <text x="624" y="434" class="s">who talks to whom</text></g>
+  </g>
+
+  <!-- ============ 4 · NAT, FILTER, HOMELAB ============ -->
+  <g data-step="4">
+    <g class="stage"><rect x="900" y="330" width="200" height="160" rx="16"/>
+      <text x="924" y="360" class="n">3 · NAT</text>
+      <text x="924" y="392" class="t">dst-nat</text>
+      <text x="924" y="416" class="s">the port forward</text>
+      <text x="924" y="434" class="s mono">→ .232:443</text></g>
+    <g class="stage"><rect x="1150" y="330" width="200" height="160" rx="16"/>
+      <text x="1174" y="360" class="n">4 · FILTER</text>
+      <text x="1174" y="392" class="t">input / forward</text>
+      <text x="1174" y="416" class="s">where most</text>
+      <text x="1174" y="434" class="s">firewall rules live</text></g>
+    <rect x="1400" y="330" width="140" height="160" rx="16" fill="var(--panel2)" stroke="#2a5566"/>
+    <text x="1420" y="392" font-size="18" font-weight="600">home lab</text>
+    <text x="1420" y="416" font-size="13" class="muted">Caddy</text>
+    <text x="1420" y="434" font-size="13" class="muted">whoami</text>
+
+    <text x="800" y="290" font-size="14" class="muted" text-anchor="middle">every step costs the router a little CPU and memory</text>
+  </g>
+
+  <!-- ============ 5 · WHERE TO DROP ============ -->
+  <g data-step="5">
+    <rect x="314" y="448" width="222" height="34" rx="9" fill="#1a0f10" stroke="var(--bad)" stroke-opacity=".75"/>
+    <text x="425" y="470" font-size="13" class="mono" text-anchor="middle" style="fill:var(--bad)">drop · crowdsec-banned</text>
+    <text x="425" y="314" font-size="12" class="caps" text-anchor="middle" style="fill:var(--bad)">WALL 2 · HERE</text>
+
+    <rect x="60" y="540" width="730" height="250" rx="18" fill="url(#gRaw)" stroke="#2c5a3e"/>
+    <text x="88" y="578" class="caps" style="fill:var(--good)">DROP IN RAW · WHAT THE BOUNCER DOES</text>
+    <text x="88" y="620" class="pro"><tspan class="m">✓ </tspan>gone at the first step</text>
+    <text x="88" y="650" class="pro"><tspan class="m">✓ </tspan>no tracking, no NAT, no connection-table entry</text>
+    <text x="88" y="680" class="pro"><tspan class="m">✓ </tspan>15,000 banned IPs cost almost nothing</text>
+    <text x="88" y="722" class="con"><tspan class="m">✗ </tspan>knows nothing about connections</text>
+    <text x="88" y="752" font-size="14" class="muted">fine for a ban: a banned IP gets nothing</text>
+
+    <rect x="810" y="540" width="730" height="250" rx="18" fill="url(#gFilter)" stroke="#5a3030"/>
+    <text x="838" y="578" class="caps" style="fill:var(--bad)">DROP IN FILTER</text>
+    <text x="838" y="620" class="con"><tspan class="m">✗ </tspan>tracked and NATed first, then thrown away</text>
+    <text x="838" y="650" class="con"><tspan class="m">✗ </tspan>every scanner packet takes a connection-table spot</text>
+    <text x="838" y="680" class="con"><tspan class="m">✗ </tspan>more work for every banned packet</text>
+    <text x="838" y="722" class="pro"><tspan class="m">✓ </tspan>can match "new" vs "established"</text>
+    <text x="838" y="752" font-size="14" class="muted">the bouncer adds a filter pair too, as a second net</text>
+
+    <rect x="60" y="814" width="1480" height="56" rx="14" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="800" y="849" font-size="19" text-anchor="middle"><tspan font-weight="600">For a ban, RAW wins.</tspan><tspan class="muted"> Drop early, drop cheap.</tspan></text>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+      if (e.key === "ArrowLeft") go(-1);
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

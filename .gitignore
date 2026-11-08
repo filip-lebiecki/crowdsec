@@ -1,0 +1,31 @@
+# --- Secrets and backups: never publish ---
+# backup-*/ holds /etc/crowdsec (Cloudflare API token), the router bouncer .env and a router export.
+backup-*/
+*.env
+*.tgz
+*.rsc
+
+# --- Runtime data ---
+# Caddy writes access logs here (real client IPs). Keep the folder, not its contents.
+logs/*
+!logs/.gitkeep
+
+# --- Drafts and old copies ---
+*.org
+*.before-*
+diagrams-backup-*/
+diagrams/archive/
+
+# --- Personal working files (video scripts, full-series teardown) ---
+# Remove a line here if you decide to publish that file.
+crowd1.md
+crowd2.md
+crowdsec.md
+teardown.sh
+
+# --- Editor / OS clutter ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

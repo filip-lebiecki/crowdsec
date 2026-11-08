@@ -1,0 +1,22 @@
+(demo) {
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
+
+	handle / {
+		reverse_proxy whoami:80
+	}
+	handle {
+		respond 404
+	}
+}
+
+whoami.linuxcloudhacks.ovh {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	import demo
+}

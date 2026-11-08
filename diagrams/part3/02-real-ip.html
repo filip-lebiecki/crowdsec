@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where the Real IP Lives</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --direct: #5fd4e6;
+    --cf: #b39dff;
+    --real: #6fe08a;
+    --tunnel: #f2b45e;
+    --bad: #ff7a6b;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .layer rect { fill: #0d141d; stroke: var(--line); }
+  .layer rect.hl { fill-opacity: .16; stroke: none; }
+  .layer .tag { font-size: 11px; letter-spacing: 2px; font-weight: 600; fill: var(--dim); }
+  .layer .v { font-size: 16px; }
+  .layer .note { font-size: 12.5px; text-anchor: end; }
+
+  .who .n { font-size: 15px; font-weight: 600; }
+  .who .r { font-size: 12.5px; fill: var(--muted); }
+  .yes { fill: var(--real); font-weight: 700; }
+  .no  { fill: var(--bad); font-weight: 700; }
+  .na  { fill: var(--dim); font-weight: 700; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="Where the real IP lives. Direct, through the port-forward: the packet's IP source address is the visitor, 203.0.113.7, so the MikroTik, nftables and Caddy's log all see the real IP. Through the Cloudflare Tunnel: the packet reaching Caddy comes from the cloudflared container, 172.24.0.3, and the real visitor IP only exists in the CF-Connecting-IP and X-Forwarded-For headers. The MikroTik never sees this traffic and nftables only sees the tunnel container, so only HTTP-aware layers can act: Caddy, which trusts the header only from the tunnel network, and the Cloudflare Worker, which sees the real IP itself. A direct visitor who sends a fake CF-Connecting-IP header is not a trusted proxy, so Caddy ignores the header and logs the real source address.">
+  <defs>
+    <linearGradient id="gDirect" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gCf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1830"/><stop offset="1" stop-color="#10141f"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--dim)"/>
+    </marker>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--real)">CROWDSEC LAB · PART 3 · REAL IP</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">Where the real IP lives</text>
+  </g>
+  <g data-step="1">
+    <rect x="1236" y="65" width="16" height="16" rx="4" fill="var(--real)" fill-opacity=".25" stroke="var(--real)"/>
+    <text x="1260" y="78" font-size="14" class="muted">real visitor IP</text>
+  </g>
+  <g data-step="3">
+    <rect x="1384" y="65" width="16" height="16" rx="4" fill="var(--tunnel)" fill-opacity=".25" stroke="var(--tunnel)"/>
+    <text x="1408" y="78" font-size="14" class="muted">tunnel's IP</text>
+  </g>
+
+  <!-- ============ 1 · DIRECT PACKET ============ -->
+  <g data-step="1">
+    <rect x="60" y="180" width="720" height="470" rx="18" fill="url(#gDirect)" stroke="#23405a"/>
+    <text x="88" y="216" class="caps" style="fill:var(--direct)">DIRECT · PORT-FORWARD</text>
+    <text x="88" y="250" font-size="26" font-weight="600">whoami.linuxcloudhacks.ovh</text>
+    <text x="88" y="274" font-size="14" class="muted">what arrives at the router, nftables and Caddy</text>
+
+    <g class="layer">
+      <rect x="88" y="296" width="664" height="54" rx="10" style="stroke:var(--real);stroke-opacity:.7"/>
+      <text x="108" y="328" class="tag">IP</text>
+      <rect class="hl" x="200" y="310" width="114" height="26" rx="6" style="fill:var(--real)"/>
+      <text x="166" y="329" class="v mono">src <tspan style="fill:var(--real)" font-weight="700">203.0.113.7</tspan>  →  dst WAN IP</text>
+      <text x="736" y="328" class="note" style="fill:var(--real)">the visitor itself</text>
+    </g>
+    <g class="layer">
+      <rect x="88" y="358" width="664" height="40" rx="10"/>
+      <text x="108" y="383" class="tag">TCP</text>
+      <text x="166" y="384" class="v mono">dst port 443</text>
+    </g>
+    <g class="layer">
+      <rect x="88" y="406" width="664" height="96" rx="10"/>
+      <text x="108" y="434" class="tag">HTTP</text>
+      <text x="166" y="435" class="v mono">GET / HTTP/1.1</text>
+      <text x="166" y="460" class="v mono">Host: whoami.linuxcloudhacks.ovh</text>
+      <text x="166" y="485" class="v mono muted">User-Agent: …</text>
+    </g>
+  </g>
+
+  <!-- ============ 2 · WHO SEES IT (DIRECT) ============ -->
+  <g data-step="2" class="who">
+    <text x="88" y="536" class="caps dim" font-size="10.5">WHO CAN SEE THE VISITOR?</text>
+    <text x="88" y="566" class="n"><tspan class="yes">✓ </tspan>MikroTik</text>
+    <text x="108" y="584" class="r">source address → RAW drop works</text>
+    <text x="88" y="614" class="n"><tspan class="yes">✓ </tspan>nftables</text>
+    <text x="108" y="632" class="r">source address → drop works</text>
+    <text x="420" y="566" class="n"><tspan class="yes">✓ </tspan>Caddy log</text>
+    <text x="440" y="584" class="r">remote_ip = client_ip = visitor</text>
+    <text x="420" y="614" class="n"><tspan class="na">– </tspan>Cloudflare Worker</text>
+    <text x="440" y="632" class="r">not on this path</text>
+  </g>
+
+  <!-- ============ 3 · TUNNEL PACKET ============ -->
+  <g data-step="3">
+    <rect x="820" y="180" width="720" height="470" rx="18" fill="url(#gCf)" stroke="#3c3466"/>
+    <text x="848" y="216" class="caps" style="fill:var(--cf)">THROUGH THE CLOUDFLARE TUNNEL</text>
+    <text x="848" y="250" font-size="26" font-weight="600">whoami-cf.linuxcloudhacks.ovh</text>
+    <text x="848" y="274" font-size="14" class="muted">what arrives at Caddy, after cloudflared</text>
+
+    <g class="layer">
+      <rect x="848" y="296" width="664" height="54" rx="10" style="stroke:var(--tunnel);stroke-opacity:.7"/>
+      <text x="868" y="328" class="tag">IP</text>
+      <rect class="hl" x="960" y="310" width="104" height="26" rx="6" style="fill:var(--tunnel)"/>
+      <text x="926" y="329" class="v mono">src <tspan style="fill:var(--tunnel)" font-weight="700">172.24.0.3</tspan>  →  dst demo-caddy</text>
+      <text x="1496" y="328" class="note" style="fill:var(--tunnel)">the cloudflared container</text>
+    </g>
+    <g class="layer">
+      <rect x="848" y="358" width="664" height="40" rx="10"/>
+      <text x="868" y="383" class="tag">TCP</text>
+      <text x="926" y="384" class="v mono">dst port 80</text>
+    </g>
+    <g class="layer">
+      <rect x="848" y="406" width="664" height="96" rx="10" style="stroke:var(--real);stroke-opacity:.7"/>
+      <text x="868" y="434" class="tag">HTTP</text>
+      <text x="926" y="435" class="v mono">Host: whoami-cf.linuxcloudhacks.ovh</text>
+      <rect class="hl" x="1095" y="443" width="114" height="24" rx="6" style="fill:var(--real)"/>
+      <text x="926" y="460" class="v mono">CF-Connecting-IP: <tspan style="fill:var(--real)" font-weight="700">203.0.113.7</tspan></text>
+      <text x="926" y="485" class="v mono muted">X-Forwarded-For: 203.0.113.7</text>
+      <text x="1496" y="460" class="note" style="fill:var(--real)">← the real visitor</text>
+    </g>
+  </g>
+
+  <!-- ============ 4 · WHO SEES IT (TUNNEL) ============ -->
+  <g data-step="4" class="who">
+    <text x="848" y="536" class="caps dim" font-size="10.5">WHO CAN SEE THE VISITOR?</text>
+    <text x="848" y="566" class="n"><tspan class="no">✗ </tspan>MikroTik</text>
+    <text x="868" y="584" class="r">traffic goes to Cloudflare, not here</text>
+    <text x="848" y="614" class="n"><tspan class="no">✗ </tspan>nftables</text>
+    <text x="868" y="632" class="r">only sees 172.24.0.3</text>
+    <text x="1180" y="566" class="n"><tspan class="yes">✓ </tspan>Caddy log</text>
+    <text x="1200" y="584" class="r">reads the header from cloudflared</text>
+    <text x="1180" y="614" class="n"><tspan class="yes">✓ </tspan>Cloudflare Worker</text>
+    <text x="1200" y="632" class="r">sees the visitor directly</text>
+  </g>
+
+  <!-- ============ 5 · SPOOF CHECK ============ -->
+  <g data-step="5">
+    <rect x="60" y="676" width="1480" height="190" rx="18" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="88" y="710" class="caps" style="fill:var(--bad)">NEVER TRUST HEADERS FROM STRANGERS</text>
+    <text x="1512" y="710" font-size="13" class="mono muted" text-anchor="end">trusted_proxies static 172.24.0.0/16</text>
+
+    <!-- the fake header -->
+    <rect x="88" y="728" width="430" height="116" rx="12" fill="#0d141d" stroke="var(--line)"/>
+    <text x="110" y="756" class="caps dim" font-size="10.5">A DIRECT VISITOR SENDS</text>
+    <text x="110" y="786" font-size="16" class="mono">CF-Connecting-IP: 1.2.3.4</text>
+    <line x1="108" y1="781" x2="372" y2="781" stroke="var(--bad)" stroke-width="2"/>
+    <text x="110" y="818" font-size="13.5" class="muted">from <tspan class="mono" style="fill:var(--real)">203.0.113.7</tspan>, trying to frame someone</text>
+
+    <line x1="526" y1="786" x2="572" y2="786" stroke="var(--dim)" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- caddy's check -->
+    <rect x="580" y="728" width="440" height="116" rx="12" fill="#0d141d" stroke="var(--line)"/>
+    <text x="602" y="756" class="caps dim" font-size="10.5">CADDY ASKS</text>
+    <text x="602" y="786" font-size="16">Is the sender a trusted proxy?</text>
+    <text x="602" y="818" font-size="13.5"><tspan class="mono">203.0.113.7</tspan><tspan class="muted"> → </tspan><tspan style="fill:var(--bad)" font-weight="600">no → header ignored</tspan></text>
+
+    <line x1="1028" y1="786" x2="1074" y2="786" stroke="var(--dim)" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- result -->
+    <rect x="1082" y="728" width="430" height="116" rx="12" fill="#0d141d" stroke="var(--real)" stroke-opacity=".6"/>
+    <text x="1104" y="756" class="caps dim" font-size="10.5">LOGGED</text>
+    <text x="1104" y="786" font-size="16" class="mono">"client_ip": "<tspan style="fill:var(--real)" font-weight="700">203.0.113.7</tspan>"</text>
+    <text x="1104" y="818" font-size="13.5" class="muted">the real sender, whatever the header says</text>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  (function () {
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+      if (e.key === "ArrowLeft") go(-1);
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

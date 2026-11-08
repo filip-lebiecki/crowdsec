@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Input vs Forward</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --log: #5fd4e6;
+    --ok: #6fe08a;
+    --warn: #f2b45e;
+    --bad: #ff7a6b;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+  .edge { fill: none; stroke: var(--line); stroke-width: 2.5; stroke-linejoin: round; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="Why the CrowdSec nftables bouncer hooks the forward chain. A banned IP sends two packets into the homelab host: one to SSH on port 22, one to port 443. After prerouting, where Docker rewrites port 443 to the Caddy container, the routing decision sends traffic for the host itself through the input chain and traffic for a container through the forward chain. Left: a bouncer that hooks input only drops the SSH packet, but the port 443 packet goes through forward and reaches the Caddy container. Right: the CrowdSec firewall bouncer hooks both input and forward, so both packets are dropped. Docker traffic goes through forward, not input.">
+  <defs>
+    <linearGradient id="gBad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22161a"/><stop offset="1" stop-color="#10141c"/>
+    </linearGradient>
+    <linearGradient id="gGood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#13281c"/><stop offset="1" stop-color="#0e1a15"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#3a4c62"/>
+    </marker>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--ok)">CROWDSEC LAB · BOUNCER</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">Why the forward chain matters</text>
+    <text x="1540" y="78" font-size="14" class="muted" text-anchor="end">same banned IP · two bouncer setups</text>
+    <g transform="translate(1370,112)">
+      <circle cx="0" cy="0" r="7" fill="var(--bad)"/>
+      <text x="16" y="5" font-size="14" class="muted">packet from a banned IP</text>
+    </g>
+  </g>
+
+  <g id="pL" data-step="1" transform="translate(60,190)"></g>
+  <g id="pR" data-step="2" transform="translate(820,190)"></g>
+
+  <!-- ============ TAKEAWAY ============ -->
+  <g data-step="3">
+    <text x="800" y="836" font-size="24" font-weight="600" text-anchor="middle">
+      <tspan class="muted">Docker traffic goes through </tspan><tspan fill="var(--ok)" class="mono">forward</tspan><tspan class="muted">, not </tspan><tspan class="mono">input</tspan><tspan class="muted">.</tspan>
+    </text>
+  </g>
+</svg>
+
+<script>
+(function () {
+  const NS = "http://www.w3.org/2000/svg";
+  const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const h = (tag, attrs, parent, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const tween = (ms, fn) => new Promise(res => {
+    const t0 = performance.now();
+    const step = now => { const p = Math.min(1, (now - t0) / ms); fn(p); p < 1 ? requestAnimationFrame(step) : res(); };
+    requestAnimationFrame(step);
+  });
+  const fadeText = (parent, attrs, text, ms = 1300) => {
+    const t = h("text", attrs, parent, text);
+    return tween(ms, p => t.setAttribute("opacity", p < .12 ? p / .12 : p > .7 ? (1 - p) / .3 : 1)).then(() => t.remove());
+  };
+
+  // packet routes (panel-local coordinates)
+  const Y_IN = 198, Y_FWD = 382, Y_MID = 290;
+  const ROUTE = {
+    22:  [[188, Y_MID], [370, Y_MID], [370, Y_IN], [404, Y_IN], [610, Y_IN]],
+    443: [[188, Y_MID], [370, Y_MID], [370, Y_FWD], [404, Y_FWD], [610, Y_FWD]]
+  };
+  const HOOK_AT = 3;   // index of the point inside the chain box
+
+  function Panel(cfg) {
+    const g = document.getElementById(cfg.id);
+    const P = {};
+    h("rect", { x: 0, y: 0, width: 720, height: 570, rx: 18, fill: `url(#${cfg.grad})`, stroke: cfg.stroke }, g);
+    h("text", { x: 24, y: 40, class: "caps", fill: cfg.color }, g, cfg.caps);
+    h("text", { x: 24, y: 76, "font-size": 26, "font-weight": 600 }, g, cfg.title);
+    h("text", { x: 24, y: 104, "font-size": 13, class: "mono muted" }, g, cfg.sub);
+
+    // attacker
+    h("rect", { x: 24, y: Y_MID - 32, width: 156, height: 64, rx: 10, fill: "var(--panel2)", stroke: "var(--bad)", "stroke-opacity": .6 }, g);
+    h("circle", { cx: 44, cy: Y_MID - 8, r: 5, fill: "var(--bad)" }, g);
+    h("text", { x: 58, y: Y_MID - 3, "font-size": 15, "font-weight": 600 }, g, "banned IP");
+    h("text", { x: 40, y: Y_MID + 20, "font-size": 11.5, class: "mono muted" }, g, "129.159.240.98");
+
+    // host frame
+    h("rect", { x: 206, y: 116, width: 490, height: 334, rx: 14, fill: "none", stroke: "var(--line)", "stroke-dasharray": "6 6" }, g);
+    h("text", { x: 222, y: 138, class: "caps dim" }, g, "HOMELAB HOST · NFTABLES");
+
+    // edges
+    h("path", { class: "edge", d: `M180 ${Y_MID} H222`, "marker-end": "url(#arr)" }, g);
+    h("path", { class: "edge", d: `M346 ${Y_MID} H370 V${Y_IN} H396`, "marker-end": "url(#arr)" }, g);
+    h("path", { class: "edge", d: `M370 ${Y_MID} V${Y_FWD} H396`, "marker-end": "url(#arr)" }, g);
+    h("path", { class: "edge", d: `M524 ${Y_IN} H550`, "marker-end": "url(#arr)" }, g);
+    h("path", { class: "edge", d: `M524 ${Y_FWD} H550`, "marker-end": "url(#arr)" }, g);
+    h("circle", { cx: 370, cy: Y_MID, r: 5, fill: "#3a4c62" }, g);
+
+    // prerouting
+    h("rect", { x: 226, y: Y_MID - 34, width: 120, height: 68, rx: 10, fill: "#0d141d", stroke: "var(--line)" }, g);
+    h("text", { x: 238, y: Y_MID - 9, "font-size": 14, "font-weight": 600, class: "mono" }, g, "prerouting");
+    h("text", { x: 238, y: Y_MID + 10, "font-size": 11, class: "muted" }, g, "Docker DNAT");
+    h("text", { x: 238, y: Y_MID + 25, "font-size": 11, class: "mono dim" }, g, ":443 → caddy");
+
+    // chains
+    const chain = (y, name, hint, hooked) => {
+      const box = h("rect", { x: 400, y: y - 44, width: 124, height: 88, rx: 10, fill: "#0d141d", stroke: hooked ? "var(--ok)" : "var(--line)", "stroke-opacity": hooked ? .7 : 1 }, g);
+      h("text", { x: 414, y: y - 20, "font-size": 16, "font-weight": 700, class: "mono" }, g, name);
+      h("text", { x: 414, y: y - 3, "font-size": 11, class: "muted" }, g, hint);
+      if (hooked) {
+        h("rect", { x: 412, y: y + 12, width: 100, height: 22, rx: 11, fill: "var(--bad)" }, g);
+        h("text", { x: 462, y: y + 27, "font-size": 11, "font-weight": 700, "text-anchor": "middle", fill: "#1a0d0d", "letter-spacing": .5 }, g, "crowdsec drop");
+      } else {
+        h("rect", { x: 412, y: y + 12, width: 100, height: 22, rx: 11, fill: "none", stroke: "var(--dim)", "stroke-dasharray": "4 4" }, g);
+        h("text", { x: 462, y: y + 27, "font-size": 11, "text-anchor": "middle", class: "dim" }, g, "no hook");
+      }
+      return box;
+    };
+    chain(Y_IN, "input", "for the host itself", true);
+    chain(Y_FWD, "forward", "routed on, to Docker", cfg.forwardHooked);
+
+    // destinations
+    P.sshd = h("rect", { x: 554, y: Y_IN - 34, width: 128, height: 68, rx: 10, fill: "var(--panel2)", stroke: "var(--line)" }, g);
+    h("text", { x: 568, y: Y_IN - 6, "font-size": 15, "font-weight": 600 }, g, "sshd");
+    h("text", { x: 568, y: Y_IN + 14, "font-size": 11.5, class: "mono muted" }, g, "host · :22");
+
+    P.box = h("rect", { x: 554, y: Y_FWD - 52, width: 128, height: 104, rx: 10, fill: "var(--panel2)", stroke: "var(--line)" }, g);
+    h("text", { x: 568, y: Y_FWD - 28, class: "caps", fill: "var(--log)" }, g, "DOCKER");
+    h("text", { x: 568, y: Y_FWD - 4, "font-size": 15, "font-weight": 600 }, g, "caddy");
+    h("text", { x: 568, y: Y_FWD + 14, "font-size": 11.5, class: "mono muted" }, g, "→ whoami");
+    h("text", { x: 568, y: Y_FWD + 36, "font-size": 11.5, class: "mono dim" }, g, ":443");
+
+    // bullets
+    cfg.bullets.forEach(([mark, color, text], i) => {
+      const y = 496 + i * 38;
+      h("text", { x: 34, y, "font-size": 20, "font-weight": 700, fill: color, "text-anchor": "middle" }, g, mark);
+      h("text", { x: 58, y, "font-size": 20 }, g, text);
+    });
+
+    P.flow = h("g", {}, g);
+    P.forwardHooked = cfg.forwardHooked;
+
+    P.send = async port => {
+      const pts = ROUTE[port];
+      const blocked = port === 22 || P.forwardHooked;
+      const stopAt = blocked ? HOOK_AT : pts.length - 1;
+      const dot = h("g", {}, P.flow);
+      h("circle", { r: 8, fill: "var(--bad)" }, dot);
+      h("text", { y: -14, "font-size": 12, "font-weight": 700, "text-anchor": "middle", class: "mono", fill: "var(--bad)" }, dot, ":" + port);
+      for (let i = 0; i < stopAt; i++) {
+        const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+        const ms = Math.hypot(x1 - x0, y1 - y0) * 2.6;
+        await tween(ms, p => dot.setAttribute("transform", `translate(${x0 + (x1 - x0) * p},${y0 + (y1 - y0) * p})`));
+      }
+      const [x, y] = pts[stopAt];
+      if (blocked) {
+        const ring = h("circle", { cx: x, cy: y, r: 8, fill: "none", stroke: "var(--bad)", "stroke-width": 3 }, P.flow);
+        tween(500, p => { ring.setAttribute("r", 8 + 26 * p); ring.setAttribute("opacity", 1 - p); }).then(() => ring.remove());
+        fadeText(P.flow, { x: 358, y: y - 14, "font-size": 14, "font-weight": 700, "text-anchor": "end", fill: "var(--bad)" }, "✕ dropped");
+      } else {
+        P.box.setAttribute("stroke", "var(--bad)"); P.box.setAttribute("stroke-width", 3);
+        fadeText(P.flow, { x: 618, y: Y_FWD + 76, "font-size": 14, "font-weight": 700, "text-anchor": "middle", fill: "var(--bad)" }, "got through!", 1600);
+        setTimeout(() => { P.box.setAttribute("stroke", "var(--line)"); P.box.setAttribute("stroke-width", 1); }, 1400);
+      }
+      await tween(350, p => dot.setAttribute("opacity", 1 - p));
+      dot.remove();
+    };
+    return P;
+  }
+
+  const L = Panel({
+    id: "pL", grad: "gBad", stroke: "#4a2a2e", color: "var(--bad)",
+    caps: "HOOKS INPUT ONLY", title: "SSH is safe, Docker isn't", sub: "hooks: [input]",
+    forwardHooked: false,
+    bullets: [["✓", "var(--ok)", "host services are protected"], ["✕", "var(--bad)", "containers are wide open"]]
+  });
+  const R = Panel({
+    id: "pR", grad: "gGood", stroke: "#2c5a3e", color: "var(--ok)",
+    caps: "CROWDSEC-FIREWALL-BOUNCER", title: "Hooks input and forward", sub: "hooks: [input, forward] · priority -10",
+    forwardHooked: true,
+    bullets: [["✓", "var(--ok)", "host services are protected"], ["✓", "var(--ok)", "Docker containers are protected"]]
+  });
+
+  async function run() {
+    for (;;) {
+      while (document.hidden) await wait(400);
+      L.send(22); R.send(22);
+      await wait(2600);
+      L.send(443); R.send(443);
+      await wait(3200);
+    }
+  }
+  if (!RM) run();
+
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  if (!new URLSearchParams(location.search).has("build")) return;
+  const groups = [...document.querySelectorAll("[data-step]")];
+  const max = Math.max(...groups.map(g => +g.dataset.step));
+  let step = 0;
+  const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+  const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+  addEventListener("click", () => go(1));
+  addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+    if (e.key === "ArrowLeft") go(-1);
+  });
+  render();
+})();
+</script>
+</body>
+</html>

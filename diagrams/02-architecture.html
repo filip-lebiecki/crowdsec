@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CrowdSec Architecture</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --log: #5fd4e6;
+    --engine: #6fe08a;
+    --router: #f2b45e;
+    --crowd: #b39dff;
+    --bad: #ff7a6b;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .track { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .t-log { stroke: var(--log); stroke-opacity: .35; }
+  .t-dec { stroke: var(--engine); stroke-opacity: .45; }
+  .t-crowd { stroke: var(--crowd); stroke-opacity: .55; }
+  .pull { fill: none; stroke: var(--engine); stroke-width: 2; stroke-opacity: .7; stroke-dasharray: 6 7;
+          animation: flow 0.9s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -13; } }
+  @media (prefers-reduced-motion: reduce) { .pull { animation: none; } }
+
+  .stage rect { fill: #0d141d; stroke: #2c5a3e; }
+  .stage .t { font-size: 16px; font-weight: 600; }
+  .stage .s { font-size: 12px; fill: var(--muted); }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="CrowdSec architecture. Log sources (Caddy access log, auth.log, syslog) feed the Security Engine: acquisition reads the logs, parsers turn lines into fields, enrichment adds GeoIP and network owner and drops whitelisted IPs, scenarios are leaky buckets per IP, and profiles turn an alert into a decision, by default a 4 hour ban. Decisions are stored in the Local API. The nftables bouncer on the homelab pulls decisions about every 10 seconds and enforces them; the MikroTik bouncer, the Cloudflare Worker bouncer and the AppSec web application firewall are marked as coming in parts 2, 3 and 4. The Central API receives anonymous signals and sends back the community blocklist of about 15,000 IPs, and the Console shows alerts and metrics. CrowdSec decides, bouncers enforce.">
+  <defs>
+    <linearGradient id="gLogs" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gEngine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#13281c"/><stop offset="1" stop-color="#0e1a15"/>
+    </linearGradient>
+    <linearGradient id="gBouncer" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231d15"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <linearGradient id="gCrowd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1830"/><stop offset="1" stop-color="#10141f"/>
+    </linearGradient>
+    <marker id="aLog" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--log)" fill-opacity=".8"/>
+    </marker>
+    <marker id="aDec" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--engine)"/>
+    </marker>
+    <marker id="aCrowd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--crowd)"/>
+    </marker>
+    <path id="mPipe" d="M290 330 H1036 V440"/>
+    <path id="mB1" d="M1104 485 H1140 V310 H1180"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--engine)">CROWDSEC LAB · ARCHITECTURE</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">CrowdSec decides, bouncers enforce</text>
+  </g>
+  <g data-step="1">
+    <circle cx="1166" cy="73" r="5" fill="var(--log)"/>
+    <text x="1180" y="78" font-size="14" class="muted">log events</text>
+  </g>
+  <g data-step="4">
+    <circle cx="1290" cy="73" r="5" fill="var(--engine)"/>
+    <text x="1304" y="78" font-size="14" class="muted">decisions</text>
+  </g>
+  <g data-step="6">
+    <circle cx="1406" cy="73" r="5" fill="var(--crowd)"/>
+    <text x="1420" y="78" font-size="14" class="muted">the crowd</text>
+  </g>
+
+  <!-- ============ 2 · ENGINE PANEL (behind the traffic) ============ -->
+  <g data-step="2">
+    <rect x="330" y="190" width="796" height="370" rx="18" fill="url(#gEngine)" stroke="#2c5a3e"/>
+    <text x="354" y="226" class="caps" style="fill:var(--engine)">SECURITY ENGINE</text>
+    <text x="354" y="252" font-size="14" class="muted">runs on the homelab</text>
+  </g>
+
+  <!-- ============ TRACKS + FLOW (under the stage chips) ============ -->
+  <g data-step="2">
+    <path class="track t-log" d="M290 330 H352"/>
+  </g>
+  <g data-step="3">
+    <path class="track t-log" d="M1036 380 V440" marker-end="url(#aLog)"/>
+  </g>
+  <g data-step="4">
+    <circle r="4" fill="var(--log)"><animateMotion dur="3.6s" repeatCount="indefinite" begin="0s"><mpath href="#mPipe"/></animateMotion></circle>
+    <circle r="4" fill="var(--log)"><animateMotion dur="3.6s" repeatCount="indefinite" begin="-1.2s"><mpath href="#mPipe"/></animateMotion></circle>
+    <circle r="4" fill="var(--log)"><animateMotion dur="3.6s" repeatCount="indefinite" begin="-2.4s"><mpath href="#mPipe"/></animateMotion></circle>
+  </g>
+  <g data-step="5">
+    <path class="pull" d="M1104 485 H1140 V310 H1176" marker-end="url(#aDec)"/>
+  </g>
+
+  <!-- ============ 1 · LOG SOURCES ============ -->
+  <g data-step="1">
+    <rect x="60" y="190" width="230" height="370" rx="18" fill="url(#gLogs)" stroke="#23405a"/>
+    <text x="84" y="226" class="caps dim">LOG SOURCES</text>
+    <text x="84" y="252" font-size="14" class="muted">what CrowdSec reads</text>
+
+    <rect x="80" y="280" width="190" height="64" rx="12" fill="var(--panel2)" stroke="#1f4a58"/>
+    <text x="96" y="306" font-size="15" class="mono">access.log</text>
+    <text x="96" y="328" font-size="12.5" style="fill:var(--log)">Caddy · web requests</text>
+
+    <rect x="80" y="358" width="190" height="64" rx="12" fill="var(--panel2)" stroke="#1f4a58"/>
+    <text x="96" y="384" font-size="15" class="mono">auth.log</text>
+    <text x="96" y="406" font-size="12.5" style="fill:var(--log)">SSH logins</text>
+
+    <rect x="80" y="436" width="190" height="64" rx="12" fill="var(--panel2)" stroke="#1f4a58"/>
+    <text x="96" y="462" font-size="15" class="mono">syslog</text>
+    <text x="96" y="484" font-size="12.5" style="fill:var(--log)">system events</text>
+
+    <text x="84" y="536" font-size="12.5" class="muted">files · Docker · journald</text>
+  </g>
+
+  <!-- ============ 2 · FIRST STAGES ============ -->
+  <g data-step="2">
+    <g class="stage"><rect x="352" y="280" width="136" height="100" rx="12"/>
+      <text x="368" y="312" class="t">Acquisition</text>
+      <text x="368" y="338" class="s">reads the logs</text>
+      <text x="368" y="356" class="s">line by line</text></g>
+    <g class="stage"><rect x="506" y="280" width="136" height="100" rx="12"/>
+      <text x="522" y="312" class="t">Parsers</text>
+      <text x="522" y="338" class="s">line → fields:</text>
+      <text x="522" y="356" class="s">IP, path, status</text></g>
+    <g class="stage"><rect x="660" y="280" width="136" height="100" rx="12"/>
+      <text x="676" y="312" class="t">Enrichment</text>
+      <text x="676" y="338" class="s">+ country, owner</text>
+      <text x="676" y="356" class="s">− whitelisted IPs</text></g>
+  </g>
+
+  <!-- ============ 3 · SCENARIOS + PROFILES ============ -->
+  <g data-step="3">
+    <g class="stage"><rect x="814" y="280" width="136" height="100" rx="12" style="stroke:var(--router)"/>
+      <text x="830" y="312" class="t">Scenarios</text>
+      <text x="830" y="338" class="s">leaky buckets</text>
+      <text x="830" y="356" class="s">per IP</text></g>
+    <g class="stage"><rect x="968" y="280" width="136" height="100" rx="12" style="stroke:var(--router)"/>
+      <text x="984" y="312" class="t">Profiles</text>
+      <text x="984" y="338" class="s">alert → decision</text>
+      <text x="984" y="356" class="s" style="fill:var(--router)">ban 4h</text></g>
+    <text x="882" y="404" font-size="12.5" text-anchor="middle" style="fill:var(--router)">bucket overflows → alert</text>
+  </g>
+
+  <!-- ============ 4 · LOCAL API ============ -->
+  <g data-step="4">
+    <rect x="352" y="440" width="752" height="96" rx="12" fill="#0d141d" stroke="var(--engine)" stroke-opacity=".8"/>
+    <text x="372" y="470" class="caps" style="fill:var(--engine)">LOCAL API · LAPI</text>
+    <text x="372" y="496" font-size="17" font-weight="600">the decision database</text>
+    <text x="372" y="519" font-size="12.5" class="mono muted">127.0.0.1:8080</text>
+    <text x="690" y="478" font-size="13" class="mono"><tspan style="fill:var(--engine)">ban</tspan>  64.227.70.2   http-sensitive-files  4h</text>
+    <text x="690" y="500" font-size="13" class="mono"><tspan style="fill:var(--engine)">ban</tspan>  203.0.113.51  manual (cscli)  5m</text>
+    <text x="690" y="522" font-size="13" class="mono"><tspan style="fill:var(--crowd)">ban</tspan>  15,000 × community blocklist</text>
+  </g>
+
+  <!-- ============ 5 · BOUNCERS ============ -->
+  <g data-step="5">
+    <text x="1180" y="226" class="caps dim">BOUNCERS</text>
+    <text x="1540" y="226" font-size="13" class="muted" text-anchor="end">pull decisions every ~10 s</text>
+
+    <rect x="1180" y="265" width="360" height="90" rx="14" fill="url(#gBouncer)" stroke="#5a4830"/>
+    <text x="1204" y="297" class="caps" font-size="10.5" style="fill:var(--router)">HOMELAB · TODAY</text>
+    <text x="1204" y="324" font-size="19" font-weight="600">nftables bouncer</text>
+    <text x="1204" y="344" font-size="12.5" class="muted">drops at the server</text>
+
+    <text x="1204" y="392" class="caps dim" font-size="10.5">COMING NEXT</text>
+    <rect x="1180" y="404" width="360" height="44" rx="10" fill="none" stroke="var(--dim)" stroke-dasharray="6 5"/>
+    <text x="1204" y="432" font-size="15" font-weight="600" class="muted">MikroTik bouncer</text>
+    <text x="1520" y="432" font-size="12.5" class="dim" text-anchor="end">part 2 · the router</text>
+    <rect x="1180" y="456" width="360" height="44" rx="10" fill="none" stroke="var(--dim)" stroke-dasharray="6 5"/>
+    <text x="1204" y="484" font-size="15" font-weight="600" class="muted">Cloudflare Worker</text>
+    <text x="1520" y="484" font-size="12.5" class="dim" text-anchor="end">part 3 · the edge</text>
+    <rect x="1180" y="508" width="360" height="44" rx="10" fill="none" stroke="var(--dim)" stroke-dasharray="6 5"/>
+    <text x="1204" y="536" font-size="15" font-weight="600" class="muted">AppSec WAF</text>
+    <text x="1520" y="536" font-size="12.5" class="dim" text-anchor="end">part 4 · every request</text>
+
+    <circle r="4.2" fill="var(--engine)"><animateMotion dur="1.8s" repeatCount="indefinite" begin="0s"><mpath href="#mB1"/></animateMotion></circle>
+
+    <rect x="1180" y="610" width="360" height="190" rx="18" fill="none" stroke="var(--engine)" stroke-opacity=".6" stroke-dasharray="7 6"/>
+    <text x="1210" y="666" font-size="26" font-weight="600">CrowdSec decides.</text>
+    <text x="1210" y="702" font-size="26" font-weight="600" style="fill:var(--engine)">Bouncers enforce.</text>
+    <text x="1210" y="744" font-size="14" class="muted">no bouncer installed →</text>
+    <text x="1210" y="766" font-size="14" class="muted">decisions exist, nothing is blocked</text>
+  </g>
+
+  <!-- ============ 6 · THE CROWD ============ -->
+  <g data-step="6">
+    <path class="track t-crowd" d="M560 536 V606" marker-end="url(#aCrowd)"/>
+    <path class="track t-crowd" d="M640 610 V540" marker-end="url(#aCrowd)"/>
+    <text x="548" y="584" font-size="12.5" text-anchor="end" style="fill:var(--crowd)">signals ↑</text>
+    <text x="652" y="584" font-size="12.5" style="fill:var(--crowd)">↓ blocklist</text>
+
+    <rect x="330" y="610" width="500" height="190" rx="18" fill="url(#gCrowd)" stroke="#3c3466"/>
+    <text x="354" y="646" class="caps" style="fill:var(--crowd)">CENTRAL API · CAPI</text>
+    <text x="354" y="682" font-size="24" font-weight="600">The crowd</text>
+    <text x="354" y="716" font-size="14.5"><tspan style="fill:var(--crowd)">↑</tspan> your bans, shared anonymously</text>
+    <text x="354" y="742" font-size="14.5"><tspan style="fill:var(--crowd)">↓</tspan> community blocklist · ~15,000 IPs</text>
+    <text x="354" y="772" font-size="12.5" class="muted">attackers others already caught</text>
+
+    <path class="track t-crowd" d="M830 705 H866" marker-end="url(#aCrowd)"/>
+
+    <rect x="870" y="610" width="256" height="190" rx="18" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="894" y="646" class="caps dim">CONSOLE</text>
+    <text x="894" y="680" font-size="17" font-weight="600" class="mono">app.crowdsec.net</text>
+    <text x="894" y="714" font-size="14" class="muted">alerts on a map</text>
+    <text x="894" y="738" font-size="14" class="muted">extra blocklists</text>
+    <text x="894" y="762" font-size="14" class="muted">bouncer metrics</text>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+      if (e.key === "ArrowLeft") go(-1);
+    });
+    render();
+  })();
+</script>
+</body>
+</html>
