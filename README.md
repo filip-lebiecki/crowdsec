@@ -112,7 +112,7 @@ sudo sh install-crowdsec.sh
 sudo apt install crowdsec crowdsec-firewall-bouncer-nftables
 sudo cscli collections install crowdsecurity/caddy
 
-git clone https://github.com/filip-lebiecki/crowdsec-homelab.git ~/crowdsec-demo && cd ~/crowdsec-demo
+git clone https://github.com/filip-lebiecki/crowdsec.git ~/crowdsec-demo && cd ~/crowdsec-demo
 # edit Caddyfile: replace the hostname with yours
 docker compose up -d
 
