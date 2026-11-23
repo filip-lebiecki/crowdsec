@@ -562,19 +562,22 @@ Part 1 works, but look at the path: the attacker's packets cross the router, ent
           Internet: visitors, bots, scanners
                          │
                          ▼   jellyfin.example.com  →  A record  →  your public IP
-┌──────────────────── MikroTik router ────────────────────┐
-│  RAW prerouting: drop src in "crowdsec-banned"  ◄───────┼──── RouterOS bouncer (api-ssl)
-│  NAT: forward TCP 443 → homelab                         │              ▲
-└────────────────────────┬────────────────────────────────┘              │
-                         ▼                                               │
-┌──────────────────────── Homelab host ───────────────────────────────────┼──┐
-│   nftables  ◄── firewall bouncer ◄────── CrowdSec Local API ────────────┘  │
-│                                               ▲      ▲                     │
-│   Caddy ──► logs/access.log ─────────────────►│      │ blocklists          │
-│     │                                         │      │ (community + console│
-│     ▼                                         │      │  subscriptions)     │
-│   Jellyfin ──► jellyfin/config/log/*.log ────►┘                            │
-└────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────── MikroTik router ─────────────────────────┐
+│  RAW prerouting: drop src in "crowdsec-banned"  ◄───────┐        │
+│  NAT: forward TCP 443 → homelab                         │        │
+└────────────────────────┬────────────────────────────────┼────────┘
+                         ▼                                │ api-ssl
+┌────────────────────────── Homelab host ─────────────────┼────────┐
+│                                                         │        │
+│   nftables ◄── firewall bouncer ◄──┬──► RouterOS bouncer┘        │
+│                                    │                             │
+│                          CrowdSec Local API ◄── blocklists       │
+│                                    ▲       (community + console) │
+│   Caddy ──► logs/access.log ───────┤                             │
+│     │                              │                             │
+│     ▼                              │                             │
+│   Jellyfin ──► config/log/*.log ───┘                             │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 Three layers: **two logs** for detection, **two firewalls** for enforcement, **two feeds** for intelligence.
