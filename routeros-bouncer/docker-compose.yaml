@@ -1,0 +1,28 @@
+# CrowdSec -> MikroTik bouncer (https://github.com/jmrplens/cs-routeros-bouncer).
+# Pulls decisions from the host's CrowdSec LAPI and mirrors them into the router's
+# crowdsec-banned / crowdsec6-banned address lists, with drop rules it creates at the top of
+# raw prerouting and filter input (and removes again on a clean stop).
+#
+# Router side: api-ssl on <router>:65432 (self-signed cert "crowdsec-api" from the
+# router's private "crowdsec-ca", hence TLS_INSECURE), available only from the homelab IP,
+# user "crowdsec" in group "crowdsec" (read,write,api). Secrets live in .env (mode 600),
+# see .env.example.
+services:
+  routeros-bouncer:
+    container_name: crowdsec-routeros-bouncer
+    image: ghcr.io/jmrplens/cs-routeros-bouncer:v1.9.0
+    restart: unless-stopped
+    # LAPI only listens on 127.0.0.1:8080, so share the host's network namespace.
+    network_mode: host
+    env_file: .env
+    environment:
+      CROWDSEC_URL: "http://127.0.0.1:8080/"
+      MIKROTIK_HOST: "192.168.12.200:65432"   # your router's LAN IP and api-ssl port
+      MIKROTIK_USER: "crowdsec"
+      MIKROTIK_TLS: "true"
+      MIKROTIK_TLS_INSECURE: "true"
+      LOG_LEVEL: "info"
+    # The image's healthcheck polls the metrics server on :2112, which stays off so it isn't
+    # exposed on every host interface under host networking.
+    healthcheck:
+      disable: true

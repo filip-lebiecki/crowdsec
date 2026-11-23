@@ -2,6 +2,8 @@
 # backup-*/ holds /etc/crowdsec (Cloudflare API token), the router bouncer .env and a router export.
 backup-*/
 *.env
+.env
+!.env.example
 *.tgz
 *.rsc
 
@@ -9,6 +11,13 @@ backup-*/
 # Caddy writes access logs here (real client IPs). Keep the folder, not its contents.
 logs/*
 !logs/.gitkeep
+
+# Jellyfin runtime data (config holds the user DB and logs with real client IPs)
+jellyfin/config/
+jellyfin/cache/
+jellyfin/media/
+jellyfin/.token
+jellyfin/admin-password.txt
 
 # --- Drafts and old copies ---
 *.org

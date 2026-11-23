@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why the Router</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --direct: #5fd4e6;
+    --router: #f2b45e;
+    --good: #6fe08a;
+    --bad: #ff7a6b;
+    --list: #b39dff;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .track { fill: none; stroke-width: 2; stroke-linecap: round; stroke: var(--direct); stroke-opacity: .32; }
+  .chip rect { fill: #0d141d; stroke: var(--line); }
+  .chip .n { font-size: 16px; font-weight: 600; }
+  .chip .s { font-size: 12.5px; fill: var(--muted); }
+  .hl { fill: none; stroke: var(--good); stroke-width: 2; }
+
+  .card > rect { fill: url(#gRouter); stroke: #5a4830; }
+  .card .num { font-size: 64px; font-weight: 700; fill: var(--router); letter-spacing: -2px; }
+  .card .t { font-size: 24px; font-weight: 600; }
+  .card .b { font-size: 16px; fill: var(--muted); }
+  .card .k { font-size: 11px; letter-spacing: 2.2px; font-weight: 600; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="Why block on the router. The MikroTik is the front door of the home network: traffic from the internet passes it before reaching the home lab, the TV, phones, laptops and the NAS. Banned IPs are dropped right there. Four things get better. One: it protects everything behind the router, every device, every port and every protocol, not just one server. Two: it saves bandwidth, because attack traffic never crosses the wire into the home network. Three: if the nftables bouncer on the server is ever disabled, the router keeps blocking. Four: the community blocklist, about fifteen thousand IPs, now protects the whole network, not just the home lab.">
+  <defs>
+    <linearGradient id="gRouter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231d15"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <linearGradient id="gHome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <marker id="aTrack" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--direct)" fill-opacity=".6"/>
+    </marker>
+    <marker id="aList" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--list)"/>
+    </marker>
+    <symbol id="globe" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M3 12h18M5 7h14M5 17h14" stroke="currentColor" stroke-width="1.2"/>
+    </symbol>
+    <path id="mAll" d="M282 308 H770"/>
+    <path id="mDrop" d="M282 308 H366"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--router)">CROWDSEC LAB · PART 2 · WHY THE ROUTER</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">Block at the front door</text>
+    <circle cx="1270" cy="73" r="5" fill="var(--direct)"/>
+    <text x="1284" y="78" font-size="14" class="muted">normal traffic</text>
+    <circle cx="1420" cy="73" r="5" fill="var(--bad)"/>
+    <text x="1434" y="78" font-size="14" class="muted">banned IP</text>
+  </g>
+
+  <!-- ============ BASE · THE FRONT DOOR ============ -->
+  <g>
+    <!-- traffic (under the boxes) -->
+    <path class="track" d="M282 308 H352" marker-end="url(#aTrack)"/>
+    <path class="track" d="M682 308 H756" marker-end="url(#aTrack)"/>
+    <circle r="4.2" fill="var(--direct)"><animateMotion dur="3s" repeatCount="indefinite" begin="0s"><mpath href="#mAll"/></animateMotion></circle>
+    <circle r="4.2" fill="var(--direct)"><animateMotion dur="3s" repeatCount="indefinite" begin="-1.5s"><mpath href="#mAll"/></animateMotion></circle>
+    <circle r="4.6" fill="var(--bad)">
+      <animateMotion dur="1.6s" repeatCount="indefinite" begin="-0.4s"><mpath href="#mDrop"/></animateMotion>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="1.6s" repeatCount="indefinite" begin="-0.4s"/>
+    </circle>
+    <circle r="4.6" fill="var(--bad)">
+      <animateMotion dur="1.6s" repeatCount="indefinite" begin="-1.2s"><mpath href="#mDrop"/></animateMotion>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="1.6s" repeatCount="indefinite" begin="-1.2s"/>
+    </circle>
+
+    <!-- internet -->
+    <rect x="60" y="248" width="220" height="120" rx="16" fill="var(--panel)" stroke="var(--line)"/>
+    <use href="#globe" x="84" y="266" width="28" height="28" style="color:var(--muted)"/>
+    <text x="84" y="326" font-size="20" font-weight="600">internet</text>
+    <text x="84" y="350" font-size="13" class="muted">visitors and scanners</text>
+
+    <!-- router -->
+    <rect x="360" y="228" width="320" height="160" rx="16" fill="url(#gRouter)" stroke="#5a4830"/>
+    <rect x="368" y="248" width="8" height="120" rx="4" fill="var(--bad)"/>
+    <text x="396" y="262" class="caps" style="fill:var(--router)">FRONT DOOR</text>
+    <text x="396" y="302" font-size="28" font-weight="600">MikroTik</text>
+    <text x="396" y="330" font-size="14" class="muted">drops banned IPs</text>
+    <text x="396" y="356" font-size="13" class="mono dim">before they get inside</text>
+
+    <!-- home network -->
+    <rect x="760" y="218" width="780" height="180" rx="18" fill="url(#gHome)" stroke="#2a5566"/>
+    <text x="788" y="252" class="caps" style="fill:var(--direct)">HOME NETWORK</text>
+
+    <g class="chip">
+      <rect x="788" y="272" width="260" height="104" rx="12"/>
+      <text x="808" y="302" class="n">home lab</text>
+      <text x="808" y="324" class="s">Caddy · Jellyfin</text>
+      <rect x="808" y="336" width="150" height="26" rx="13" style="fill:#13202c;stroke:#2a5566"/>
+      <text x="883" y="354" font-size="12" class="mono muted" text-anchor="middle">nftables bouncer</text>
+    </g>
+    <g class="chip"><rect x="1064" y="272" width="104" height="104" rx="12"/><text x="1116" y="330" class="n" text-anchor="middle">TV</text></g>
+    <g class="chip"><rect x="1180" y="272" width="104" height="104" rx="12"/><text x="1232" y="330" class="n" text-anchor="middle">phones</text></g>
+    <g class="chip"><rect x="1296" y="272" width="104" height="104" rx="12"/><text x="1348" y="330" class="n" text-anchor="middle">laptops</text></g>
+    <g class="chip"><rect x="1412" y="272" width="104" height="104" rx="12"/><text x="1464" y="330" class="n" text-anchor="middle">NAS</text></g>
+  </g>
+
+  <!-- ============ 1 · PROTECTS EVERYTHING ============ -->
+  <g data-step="1">
+    <rect class="hl" x="788" y="272" width="260" height="104" rx="12"/>
+    <rect class="hl" x="1064" y="272" width="104" height="104" rx="12"/>
+    <rect class="hl" x="1180" y="272" width="104" height="104" rx="12"/>
+    <rect class="hl" x="1296" y="272" width="104" height="104" rx="12"/>
+    <rect class="hl" x="1412" y="272" width="104" height="104" rx="12"/>
+    <text x="1516" y="252" font-size="13" text-anchor="end" style="fill:var(--good)">every device · every port · every protocol</text>
+
+    <g class="card">
+      <rect x="60" y="450" width="352" height="350" rx="18"/>
+      <text x="88" y="530" class="num">1</text>
+      <text x="88" y="586" class="t">Protects everything</text>
+      <text x="88" y="636" class="b">Every device behind the router,</text>
+      <text x="88" y="660" class="b">every port, every protocol.</text>
+      <text x="88" y="684" class="b">Not just one server.</text>
+      <text x="88" y="772" class="k" style="fill:var(--good)">WHOLE NETWORK</text>
+    </g>
+  </g>
+
+  <!-- ============ 2 · SAVES BANDWIDTH ============ -->
+  <g data-step="2">
+    <text x="719" y="336" font-size="11" text-anchor="middle" style="fill:var(--good)">attack</text>
+    <text x="719" y="350" font-size="11" text-anchor="middle" style="fill:var(--good)">stays out</text>
+
+    <g class="card">
+      <rect x="436" y="450" width="352" height="350" rx="18"/>
+      <text x="464" y="530" class="num">2</text>
+      <text x="464" y="586" class="t">Saves bandwidth</text>
+      <text x="464" y="636" class="b">Attack traffic never crosses</text>
+      <text x="464" y="660" class="b">the wire into my home</text>
+      <text x="464" y="684" class="b">network.</text>
+      <text x="464" y="772" class="k" style="fill:var(--good)">DROPPED AT THE EDGE</text>
+    </g>
+  </g>
+
+  <!-- ============ 3 · SECOND WALL ============ -->
+  <g data-step="3">
+    <line x1="814" y1="349" x2="952" y2="349" stroke="var(--bad)" stroke-width="2"/>
+    <text x="664" y="262" class="caps" font-size="10.5" text-anchor="end" style="fill:var(--good)">STILL BLOCKING</text>
+
+    <g class="card">
+      <rect x="812" y="450" width="352" height="350" rx="18"/>
+      <text x="840" y="530" class="num">3</text>
+      <text x="840" y="586" class="t">A second wall</text>
+      <text x="840" y="636" class="b">Disable the nftables bouncer</text>
+      <text x="840" y="660" class="b">by accident? The router</text>
+      <text x="840" y="684" class="b">keeps blocking.</text>
+      <text x="840" y="772" class="k" style="fill:var(--good)">DEFENSE IN DEPTH</text>
+    </g>
+  </g>
+
+  <!-- ============ 4 · BLOCKLIST FOR ALL ============ -->
+  <g data-step="4">
+    <rect x="410" y="168" width="270" height="34" rx="17" fill="#17142a" stroke="var(--list)" stroke-opacity=".8"/>
+    <text x="545" y="190" font-size="13.5" text-anchor="middle" style="fill:var(--list)">community blocklist · ~15,000 IPs</text>
+    <line x1="545" y1="203" x2="545" y2="224" stroke="var(--list)" stroke-width="2" marker-end="url(#aList)"/>
+
+    <g class="card">
+      <rect x="1188" y="450" width="352" height="350" rx="18"/>
+      <text x="1216" y="530" class="num">4</text>
+      <text x="1216" y="586" class="t">Blocklist for all</text>
+      <text x="1216" y="636" class="b">Thousands of community IPs,</text>
+      <text x="1216" y="660" class="b">blocked for the whole network.</text>
+      <text x="1216" y="684" class="b">Not just the home lab.</text>
+      <text x="1216" y="772" class="k" style="fill:var(--list)">~15,000 IPs</text>
+    </g>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space / Enter / PageDown (← / PageUp / Backspace go back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (["ArrowRight", " ", "Enter", "PageDown"].includes(e.key)) { e.preventDefault(); go(1); }
+      if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(-1); }
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

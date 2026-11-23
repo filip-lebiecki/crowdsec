@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Known Proxies Trap</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --direct: #5fd4e6;
+    --real: #6fe08a;
+    --proxy: #f2b45e;
+    --bad: #ff7a6b;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .node rect { fill: var(--panel); stroke: var(--line); }
+  .node .t { font-size: 24px; font-weight: 600; }
+  .node .s { font-size: 14px; fill: var(--muted); }
+  .hop { fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; }
+
+  .layer rect { fill: #0d141d; stroke: var(--line); }
+  .layer .tag { font-size: 11px; letter-spacing: 2px; font-weight: 600; fill: var(--dim); }
+  .layer .v { font-size: 15.5px; }
+  .layer .note { font-size: 12.5px; text-anchor: end; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="Why Jellyfin logs the wrong IP behind a reverse proxy. The attacker, a cloud VM at 158.101.197.57, opens a connection to Caddy through the MikroTik port-forward. Caddy then opens a second connection to Jellyfin from its own Docker address, 172.16.4.3, the demo-caddy container. So Jellyfin's log says the denied login came from 172.16.4.3: Jellyfin thinks Caddy is the client. Caddy does pass the real IP along in the X-Forwarded-For header, but Jellyfin only reads that header when the sender is a known proxy. With no known proxies configured, Jellyfin ignores the header, so the log shows Caddy's IP instead of the attacker's.">
+  <defs>
+    <linearGradient id="gCaddy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gBad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#281515"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--dim)"/>
+    </marker>
+    <path id="mHop1" d="M406 262 H622"/>
+    <path id="mHop2" d="M976 262 H1192"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--proxy)">CROWDSEC LAB · PART 2 · BEHIND THE PROXY</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">Jellyfin thinks Caddy is the client</text>
+  </g>
+  <g data-step="1">
+    <rect x="1196" y="65" width="16" height="16" rx="4" fill="var(--real)" fill-opacity=".25" stroke="var(--real)"/>
+    <text x="1220" y="78" font-size="14" class="muted">attacker's IP</text>
+    <rect x="1376" y="65" width="16" height="16" rx="4" fill="var(--proxy)" fill-opacity=".25" stroke="var(--proxy)"/>
+    <text x="1400" y="78" font-size="14" class="muted">Caddy's IP</text>
+  </g>
+
+  <!-- ============ 1 · TWO CONNECTIONS ============ -->
+  <g data-step="1" transform="translate(0 50)">
+    <!-- attacker -->
+    <g class="node">
+      <rect x="60" y="190" width="340" height="144" rx="16" style="fill:url(#gBad);stroke:#5a3030"/>
+      <text x="86" y="224" class="caps" style="fill:var(--bad)">ATTACKER</text>
+      <text x="86" y="260" class="t">cloud server</text>
+      <text x="86" y="298" font-size="18" font-weight="700" class="mono" style="fill:var(--real)">158.101.197.57</text>
+    </g>
+
+    <!-- hop 1 -->
+    <path class="hop" d="M402 262 H624" marker-end="url(#arr)"/>
+    <text x="514" y="244" class="caps dim" font-size="10.5" text-anchor="middle">CONNECTION 1</text>
+    <text x="514" y="290" font-size="13" class="mono" text-anchor="middle" style="fill:var(--real)">from 158.101.197.57</text>
+    <text x="514" y="312" font-size="12" class="dim" text-anchor="middle">via MikroTik port-forward :443</text>
+
+    <!-- caddy -->
+    <g class="node">
+      <rect x="630" y="190" width="340" height="144" rx="16" style="fill:url(#gCaddy);stroke:#23405a"/>
+      <text x="656" y="224" class="caps" style="fill:var(--direct)">REVERSE PROXY</text>
+      <text x="656" y="260" class="t">Caddy</text>
+      <text x="656" y="298" font-size="18" font-weight="700" class="mono"><tspan class="muted" font-weight="400" font-size="15">demo-caddy · </tspan><tspan style="fill:var(--proxy)">172.16.4.3</tspan></text>
+    </g>
+
+    <!-- hop 2 -->
+    <path class="hop" d="M972 262 H1194" marker-end="url(#arr)"/>
+    <text x="1084" y="244" class="caps dim" font-size="10.5" text-anchor="middle">CONNECTION 2</text>
+    <text x="1084" y="290" font-size="13" class="mono" text-anchor="middle" style="fill:var(--proxy)">from 172.16.4.3</text>
+    <text x="1084" y="312" font-size="12" class="dim" text-anchor="middle">Docker network</text>
+
+    <!-- jellyfin -->
+    <g class="node">
+      <rect x="1200" y="190" width="340" height="144" rx="16"/>
+      <text x="1226" y="224" class="caps" style="fill:var(--muted)">APP</text>
+      <text x="1226" y="260" class="t">Jellyfin</text>
+      <text x="1226" y="298" class="s">no public port · <tspan class="mono">:8096</tspan></text>
+    </g>
+
+    <!-- traffic -->
+    <circle r="4.6" fill="var(--real)"><animateMotion dur="2.6s" repeatCount="indefinite" begin="0s"><mpath href="#mHop1"/></animateMotion></circle>
+    <circle r="4.6" fill="var(--real)"><animateMotion dur="2.6s" repeatCount="indefinite" begin="-1.3s"><mpath href="#mHop1"/></animateMotion></circle>
+    <circle r="4.6" fill="var(--proxy)"><animateMotion dur="2.6s" repeatCount="indefinite" begin="-0.65s"><mpath href="#mHop2"/></animateMotion></circle>
+    <circle r="4.6" fill="var(--proxy)"><animateMotion dur="2.6s" repeatCount="indefinite" begin="-1.95s"><mpath href="#mHop2"/></animateMotion></circle>
+  </g>
+
+  <!-- ============ 2 · WHAT JELLYFIN LOGS ============ -->
+  <g data-step="2" transform="translate(0 90)">
+    <rect x="60" y="372" width="700" height="216" rx="18" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="88" y="408" class="caps" style="fill:var(--bad)">JELLYFIN'S LOG · ONE WRONG PASSWORD</text>
+
+    <rect x="88" y="424" width="644" height="84" rx="10" fill="#0d141d" stroke="var(--proxy)" stroke-opacity=".6"/>
+    <text x="110" y="458" font-size="16" class="mono">Authentication request for "admin"</text>
+    <text x="110" y="486" font-size="16" class="mono">has been denied (IP: "<tspan style="fill:var(--proxy)" font-weight="700">172.16.4.3</tspan>").</text>
+
+    <text x="88" y="540" font-size="19" font-weight="600">That's not the attacker. That's Caddy.</text>
+    <text x="88" y="566" font-size="14" class="muted">Jellyfin only sees who opened connection 2.</text>
+  </g>
+
+  <!-- ============ 3 · WHAT CADDY SENDS ============ -->
+  <g data-step="3" transform="translate(0 90)">
+    <line x1="1084" y1="298" x2="1084" y2="368" stroke="var(--dim)" stroke-width="1.5" stroke-dasharray="3 5"/>
+    <rect x="800" y="372" width="740" height="216" rx="18" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="828" y="408" class="caps" style="fill:var(--direct)">WHAT CADDY SENDS TO JELLYFIN</text>
+
+    <g class="layer">
+      <rect x="828" y="422" width="684" height="48" rx="10" style="stroke:var(--proxy);stroke-opacity:.7"/>
+      <text x="848" y="451" class="tag">IP</text>
+      <text x="906" y="452" class="v mono">src <tspan style="fill:var(--proxy)" font-weight="700">172.16.4.3</tspan>  →  dst jellyfin:8096</text>
+      <text x="1496" y="451" class="note" style="fill:var(--proxy)">Caddy's own address</text>
+    </g>
+    <g class="layer">
+      <rect x="828" y="478" width="684" height="94" rx="10" style="stroke:var(--real);stroke-opacity:.7"/>
+      <text x="848" y="506" class="tag">HTTP</text>
+      <text x="906" y="507" class="v mono">POST /Users/AuthenticateByName</text>
+      <text x="906" y="533" class="v mono">X-Forwarded-For: <tspan style="fill:var(--real)" font-weight="700">158.101.197.57</tspan></text>
+      <text x="906" y="559" class="v mono muted">Host: jellyfin.linuxcloudhacks.ovh</text>
+      <text x="1496" y="533" class="note" style="fill:var(--real)">← the real attacker</text>
+    </g>
+
+    <rect x="60" y="620" width="1480" height="64" rx="14" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="800" y="659" font-size="19" text-anchor="middle"><tspan class="muted">The real IP is right there in the header. </tspan><tspan font-weight="600">Jellyfin ignores it, unless it trusts the sender.</tspan></text>
+  </g>
+
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+      if (e.key === "ArrowLeft") go(-1);
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

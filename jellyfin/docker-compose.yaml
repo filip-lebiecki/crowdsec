@@ -1,0 +1,32 @@
+# Jellyfin for CrowdSec part 2: a real HTTP service behind the demo Caddy.
+# No public port: Caddy (../docker-compose.yaml) reaches it over the shared crowdsec_demo network.
+# Start the Caddy stack first, it creates that network.
+#
+# CrowdSec reads Jellyfin's own log (./config/log/log_*.log) for failed logins
+# (collection LePresidente/jellyfin, acquisition /etc/crowdsec/acquis.d/jellyfin-demo.yaml).
+# For that log to show the real client IP, Caddy must be a "known proxy" in Jellyfin
+# (Dashboard -> Networking -> Known proxies -> demo-caddy).
+#
+# Before the first start:  mkdir -p config cache media
+# Change the URL below to your own hostname, and "user" to your uid:gid (id -u; id -g).
+networks:
+  demo:
+    name: crowdsec_demo
+    external: true
+
+services:
+  jellyfin:
+    container_name: demo-jellyfin
+    image: jellyfin/jellyfin:12.4
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      JELLYFIN_PublishedServerUrl: "https://jellyfin.linuxcloudhacks.ovh"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ./media:/media:ro
+    # Local admin only (setup wizard, API). The internet goes through Caddy.
+    ports:
+      - "127.0.0.1:8096:8096"
+    networks: [demo]

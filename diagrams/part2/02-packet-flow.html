@@ -144,7 +144,7 @@
     <rect x="1400" y="330" width="140" height="160" rx="16" fill="var(--panel2)" stroke="#2a5566"/>
     <text x="1420" y="392" font-size="18" font-weight="600">home lab</text>
     <text x="1420" y="416" font-size="13" class="muted">Caddy</text>
-    <text x="1420" y="434" font-size="13" class="muted">whoami</text>
+    <text x="1420" y="434" font-size="13" class="muted">Jellyfin</text>
 
     <text x="800" y="290" font-size="14" class="muted" text-anchor="middle">every step costs the router a little CPU and memory</text>
   </g>
@@ -189,8 +189,8 @@
     const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
     addEventListener("click", () => go(1));
     addEventListener("keydown", e => {
-      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
-      if (e.key === "ArrowLeft") go(-1);
+      if (["ArrowRight", " ", "Enter", "PageDown"].includes(e.key)) { e.preventDefault(); go(1); }
+      if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(-1); }
     });
     render();
   })();

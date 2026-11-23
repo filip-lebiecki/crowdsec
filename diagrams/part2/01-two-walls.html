@@ -48,7 +48,7 @@
 </head>
 <body>
 <svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
-     aria-label="CrowdSec lab overview, part 2. whoami.linuxcloudhacks.ovh resolves to the WAN IP; traffic passes the MikroTik router (wall 2, RAW drop of banned IPs, port-forward tcp/443) and nftables on the homelab (wall 1) into Caddy on port 443 and the whoami app. Caddy writes the access log with the real client IP; the CrowdSec engine reads it, turns scenarios into ban decisions and feeds both walls through the MikroTik and nftables bouncers. The router drops a banned IP first; nftables on the server is the backstop.">
+     aria-label="CrowdSec lab overview, part 2. jellyfin.linuxcloudhacks.ovh resolves to the WAN IP; traffic passes the MikroTik router (wall 2, RAW drop of banned IPs, port-forward tcp/443) and nftables on the homelab (wall 1) into Caddy on port 443, which proxies to Jellyfin. Caddy writes the access log with the real client IP, and Jellyfin writes its own log of failed logins (it trusts Caddy as a known proxy); the CrowdSec engine reads both, turns scenarios into ban decisions and feeds both walls through the MikroTik and nftables bouncers. The router drops a banned IP first; nftables on the server is the backstop.">
   <defs>
     <linearGradient id="gHome" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
@@ -101,10 +101,10 @@
     <rect x="60" y="168" width="1480" height="64" rx="14" fill="var(--panel)" stroke="var(--line)"/>
     <use href="#globe" x="742" y="182" width="34" height="34" style="color:var(--muted)"/>
     <text x="788" y="197" font-size="19" font-weight="600">internet</text>
-    <text x="788" y="218" font-size="13" class="muted">visitors and scanners</text>
+    <text x="788" y="218" font-size="13" class="muted">viewers, scanners, password guessers</text>
 
     <text x="90" y="194" class="caps" font-size="11" style="fill:var(--direct)">DIRECT · DNS ONLY</text>
-    <text x="90" y="218" font-size="15" class="mono">whoami.linuxcloudhacks.ovh → WAN IP</text>
+    <text x="90" y="218" font-size="15" class="mono">jellyfin.linuxcloudhacks.ovh → WAN IP</text>
 
   </g>
 
@@ -143,16 +143,16 @@
     <text x="354" y="256" font-size="12.5" font-weight="600" style="fill:var(--bad)">banned → dropped</text>
   </g>
 
-  <!-- ============ 2 · CADDY + WHOAMI ============ -->
+  <!-- ============ 2 · CADDY + JELLYFIN ============ -->
   <g data-step="2">
     <rect x="620" y="590" width="360" height="100" rx="14" fill="#0d141d" stroke="#2a5566"/>
     <text x="644" y="622" font-size="22" font-weight="600">Caddy</text>
-    <text x="956" y="621" class="caps" font-size="10" text-anchor="end" style="fill:var(--dim)">THE SENSOR</text>
+    <text x="956" y="621" class="caps" font-size="10" text-anchor="end" style="fill:var(--dim)">REVERSE PROXY</text>
     <text x="644" y="648" font-size="13.5" class="mono" style="fill:var(--direct)">:443 · TLS, Let's Encrypt</text>
-    <text x="644" y="672" font-size="13.5" class="mono muted">/ → whoami · anything else → 404</text>
+    <text x="644" y="672" font-size="13.5" class="mono muted">+ X-Forwarded-For: real client IP</text>
 
     <rect x="720" y="712" width="160" height="40" rx="10" fill="var(--panel2)" stroke="#2a5566"/>
-    <text x="800" y="738" font-size="16" class="mono" text-anchor="middle">whoami</text>
+    <text x="800" y="738" font-size="16" class="mono" text-anchor="middle">Jellyfin</text>
   </g>
 
   <!-- ============ 3 · DIRECT DOOR: MIKROTIK ============ -->
@@ -168,12 +168,15 @@
   <g data-step="4">
     <path class="track" d="M650 690 V770" stroke="var(--muted)" stroke-opacity=".6" stroke-dasharray="4 5" marker-end="url(#aLog)"/>
     <text x="636" y="736" font-size="13.5" class="mono" text-anchor="end">access.log</text>
-    <text x="636" y="755" font-size="12.5" class="muted" text-anchor="end">real client IP</text>
+    <text x="636" y="755" font-size="12.5" class="muted" text-anchor="end">scans, 401s</text>
+
+    <path class="track" d="M880 732 H912 V770" stroke="var(--muted)" stroke-opacity=".6" stroke-dasharray="4 5" marker-end="url(#aLog)"/>
+    <text x="924" y="763" font-size="13.5" class="mono">jellyfin log<tspan font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="12.5" class="muted"> · failed logins</tspan></text>
 
     <rect x="470" y="774" width="660" height="70" rx="14" fill="url(#gEngine)" stroke="#2c5a3e"/>
     <use href="#shield" x="492" y="790" width="36" height="36" style="color:var(--good)"/>
     <text x="540" y="801" class="caps" style="fill:var(--good)">CROWDSEC ENGINE</text>
-    <text x="540" y="827" font-size="15">reads the log → scenario → <tspan font-weight="600" style="fill:var(--good)">ban decision</tspan></text>
+    <text x="540" y="827" font-size="15">reads both logs → scenario → <tspan font-weight="600" style="fill:var(--good)">ban decision</tspan></text>
     <text x="1106" y="815" font-size="12.5" class="muted" text-anchor="end">one decision, 2 bouncers</text>
   </g>
 

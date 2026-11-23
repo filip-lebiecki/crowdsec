@@ -20,3 +20,18 @@ whoami.linuxcloudhacks.ovh {
 	}
 	import demo
 }
+
+# Part 2: Jellyfin (~/jellyfin). Same access log, so the part 1 scanner scenarios
+# cover it too. Caddy adds X-Forwarded-For, which Jellyfin trusts once Caddy is a known proxy.
+jellyfin.linuxcloudhacks.ovh {
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	reverse_proxy demo-jellyfin:8096
+}

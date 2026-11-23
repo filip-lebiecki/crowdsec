@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detection vs Intelligence</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --direct: #5fd4e6;
+    --router: #f2b45e;
+    --engine: #7aa2ff;
+    --good: #6fe08a;
+    --bad: #ff7a6b;
+    --list: #b39dff;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .box rect { fill: #0d141d; stroke: var(--line); }
+  .box .k { font-size: 11px; letter-spacing: 2.2px; font-weight: 600; }
+  .box .t { font-size: 24px; font-weight: 600; }
+  .box .s { font-size: 14px; fill: var(--muted); }
+  .off { opacity: .35; }
+  .flow { fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; }
+  .lbl { font-size: 12px; text-anchor: middle; fill: var(--muted); }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="Detection versus intelligence. With detection, the attacker knocks first: its requests reach Caddy, Caddy logs them, CrowdSec reads the log and reacts, and only then is the IP banned, so the first hits always get through. With intelligence, the attacker's IP is already on a blocklist, so the MikroTik drops its very first packet in RAW. Caddy has nothing to log and CrowdSec has nothing to react to. The knock never lands.">
+  <defs>
+    <linearGradient id="gDetect" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gIntel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1830"/><stop offset="1" stop-color="#10141f"/>
+    </linearGradient>
+    <linearGradient id="gRouter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231d15"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--dim)"/>
+    </marker>
+    <path id="mKnock" d="M354 325 H444"/>
+    <path id="mDrop" d="M354 605 H452"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--list)">CROWDSEC LAB · PART 2 · THE SHIFT</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">The knock never lands</text>
+  </g>
+
+  <!-- ============ 1 · DETECTION ============ -->
+  <g data-step="1">
+    <rect x="60" y="200" width="1480" height="250" rx="18" fill="url(#gDetect)" stroke="#23405a"/>
+    <text x="92" y="236" class="caps" style="fill:var(--direct)">DETECTION · THE ATTACKER KNOCKS FIRST</text>
+    <text x="1508" y="236" font-size="14" text-anchor="end" style="fill:var(--bad)">reacts after the knock</text>
+
+    <g class="box">
+      <rect x="100" y="260" width="250" height="130" rx="14" style="stroke:#5a3030"/>
+      <text x="124" y="290" class="k" style="fill:var(--bad)">ATTACKER</text>
+      <text x="124" y="328" class="t">scanner</text>
+      <text x="124" y="356" class="s">unknown IP</text>
+    </g>
+    <path class="flow" d="M354 325 H444" marker-end="url(#arr)"/>
+    <text x="400" y="312" class="lbl" style="fill:var(--bad)">knock</text>
+    <circle r="4.6" fill="var(--bad)"><animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#mKnock"/></animateMotion></circle>
+    <circle r="4.6" fill="var(--bad)"><animateMotion dur="1.4s" repeatCount="indefinite" begin="-0.7s"><mpath href="#mKnock"/></animateMotion></circle>
+
+    <g class="box">
+      <rect x="450" y="260" width="250" height="130" rx="14"/>
+      <text x="474" y="290" class="k" style="fill:var(--direct)">CADDY</text>
+      <text x="474" y="328" class="t">logs it</text>
+      <text x="474" y="356" class="s">request reached the server</text>
+    </g>
+    <path class="flow" d="M704 325 H794" marker-end="url(#arr)"/>
+    <text x="750" y="312" class="lbl">log line</text>
+
+    <g class="box">
+      <rect x="800" y="260" width="250" height="130" rx="14"/>
+      <text x="824" y="290" class="k" style="fill:var(--engine)">CROWDSEC</text>
+      <text x="824" y="328" class="t">reacts</text>
+      <text x="824" y="356" class="s">a scenario trips</text>
+    </g>
+    <path class="flow" d="M1054 325 H1144" marker-end="url(#arr)"/>
+    <text x="1100" y="312" class="lbl">decision</text>
+
+    <g class="box">
+      <rect x="1150" y="260" width="350" height="130" rx="14" style="stroke:var(--router);stroke-opacity:.6"/>
+      <text x="1174" y="290" class="k" style="fill:var(--router)">BAN</text>
+      <text x="1174" y="328" class="t">blocked, eventually</text>
+      <text x="1174" y="356" class="s">the first hits already got through</text>
+    </g>
+
+    <text x="92" y="424" font-size="14" class="muted">Needs the attack to happen before it can stop it.</text>
+  </g>
+
+  <!-- ============ 2 · INTELLIGENCE ============ -->
+  <g data-step="2">
+    <rect x="60" y="480" width="1480" height="250" rx="18" fill="url(#gIntel)" stroke="#3c3466"/>
+    <text x="92" y="516" class="caps" style="fill:var(--list)">INTELLIGENCE · WE ALREADY KNOW WHO THEY ARE</text>
+    <text x="1508" y="516" font-size="14" text-anchor="end" style="fill:var(--good)">blocked before the knock</text>
+
+    <g class="box">
+      <rect x="100" y="540" width="250" height="130" rx="14" style="stroke:#5a3030"/>
+      <text x="124" y="570" class="k" style="fill:var(--bad)">ATTACKER</text>
+      <text x="124" y="608" class="t">scanner</text>
+      <rect x="124" y="624" width="158" height="26" rx="13" fill="#17142a" stroke="var(--list)" stroke-opacity=".8"/>
+      <text x="203" y="642" font-size="12.5" text-anchor="middle" style="fill:var(--list)">on a blocklist</text>
+    </g>
+    <path class="flow" d="M354 605 H444" marker-end="url(#arr)"/>
+    <circle r="4.6" fill="var(--bad)">
+      <animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#mDrop"/></animateMotion>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+    <circle r="4.6" fill="var(--bad)">
+      <animateMotion dur="1.4s" repeatCount="indefinite" begin="-0.7s"><mpath href="#mDrop"/></animateMotion>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur="1.4s" repeatCount="indefinite" begin="-0.7s"/>
+    </circle>
+
+    <g class="box">
+      <rect x="450" y="540" width="250" height="130" rx="14" style="fill:url(#gRouter);stroke:#5a4830"/>
+      <rect x="458" y="556" width="8" height="98" rx="4" fill="var(--bad)"/>
+      <text x="484" y="570" class="k" style="fill:var(--router)">MIKROTIK · RAW</text>
+      <text x="484" y="608" class="t">dropped</text>
+      <text x="484" y="636" class="s">the very first packet</text>
+    </g>
+
+    <g class="off">
+      <path class="flow" d="M704 605 H794" stroke-dasharray="4 6"/>
+      <g class="box">
+        <rect x="800" y="540" width="250" height="130" rx="14"/>
+        <text x="824" y="570" class="k" style="fill:var(--direct)">CADDY</text>
+        <text x="824" y="608" class="t">nothing to log</text>
+      </g>
+      <path class="flow" d="M1054 605 H1144" stroke-dasharray="4 6"/>
+      <g class="box">
+        <rect x="1150" y="540" width="350" height="130" rx="14"/>
+        <text x="1174" y="570" class="k" style="fill:var(--engine)">CROWDSEC</text>
+        <text x="1174" y="608" class="t">nothing to react to</text>
+      </g>
+    </g>
+
+    <text x="92" y="704" font-size="14" class="muted">Known attackers are stopped at the edge. The server never hears them.</text>
+  </g>
+
+  <!-- ============ 3 · TAKEAWAY ============ -->
+  <g data-step="3">
+    <rect x="60" y="762" width="1480" height="64" rx="14" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="800" y="801" font-size="19" text-anchor="middle"><tspan class="muted">Detection: the attacker knocks first. </tspan><tspan font-weight="600">Intelligence: the knock never lands.</tspan></text>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space / Enter / PageDown (← / PageUp / Backspace go back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (["ArrowRight", " ", "Enter", "PageDown"].includes(e.key)) { e.preventDefault(); go(1); }
+      if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(-1); }
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

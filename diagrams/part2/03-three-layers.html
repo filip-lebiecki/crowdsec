@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three Layers of Defense</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --log: #5fd4e6;
+    --engine: #6fe08a;
+    --router: #f2b45e;
+    --crowd: #b39dff;
+    --bad: #ff7a6b;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .track { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .t-log { stroke: var(--log); stroke-opacity: .4; }
+  .t-dec { stroke: var(--engine); stroke-opacity: .5; }
+  .t-crowd { stroke: var(--crowd); stroke-opacity: .6; }
+  .pull { fill: none; stroke: var(--engine); stroke-width: 2; stroke-opacity: .75; stroke-dasharray: 6 7;
+          animation: flow 0.9s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -13; } }
+  @media (prefers-reduced-motion: reduce) { .pull { animation: none; } }
+
+  .badge circle { fill: var(--engine); }
+  .badge text { fill: #0b1a10; font-size: 13px; font-weight: 700; text-anchor: middle; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="Three layers of defense. Layer 1, detection: two logs feed the CrowdSec engine, the Caddy access log which sees every request, and the Jellyfin log which knows the username and the real IP. The engine turns scenarios into ban decisions. Layer 2, enforcement: two bouncers pull the same decisions every ten seconds, the nftables bouncer on the server and the MikroTik bouncer which drops banned IPs in the RAW table on the router. Layer 3, intelligence: the community blocklist of about 15,000 IPs and the React2Shell campaign blocklist of about 50,000 IPs also arrive as decisions in the same Local API, so the same bouncers enforce them.">
+  <defs>
+    <linearGradient id="gLogs" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gEngine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#13281c"/><stop offset="1" stop-color="#0e1a15"/>
+    </linearGradient>
+    <linearGradient id="gBouncer" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231d15"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+    <linearGradient id="gCrowd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1830"/><stop offset="1" stop-color="#10141f"/>
+    </linearGradient>
+    <marker id="aLog" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--log)" fill-opacity=".85"/>
+    </marker>
+    <marker id="aDec" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--engine)"/>
+    </marker>
+    <marker id="aCrowd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--crowd)"/>
+    </marker>
+    <path id="mL1" d="M500 330 H596"/>
+    <path id="mL2" d="M500 470 H596"/>
+    <path id="mI" d="M800 620 V564"/>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--engine)">CROWDSEC LAB · PART 2</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">Three layers of defense</text>
+  </g>
+  <g data-step="1">
+    <circle cx="1166" cy="73" r="5" fill="var(--log)"/>
+    <text x="1180" y="78" font-size="14" class="muted">log events</text>
+  </g>
+  <g data-step="3">
+    <circle cx="1290" cy="73" r="5" fill="var(--engine)"/>
+    <text x="1304" y="78" font-size="14" class="muted">decisions</text>
+  </g>
+  <g data-step="4">
+    <circle cx="1406" cy="73" r="5" fill="var(--crowd)"/>
+    <text x="1420" y="78" font-size="14" class="muted">intelligence</text>
+  </g>
+
+  <!-- ============ 1 · DETECTION: LOGS ============ -->
+  <g data-step="1">
+    <rect x="60" y="190" width="440" height="370" rx="18" fill="url(#gLogs)" stroke="#23405a"/>
+    <g class="badge" transform="translate(60 190)"><circle r="13" style="fill:var(--log)"/><text y="4.5">1</text></g>
+    <text x="90" y="226" class="caps" style="fill:var(--log)">DETECTION · TWO LOGS</text>
+    <text x="90" y="252" font-size="14" class="muted">two witnesses, one story</text>
+
+    <rect x="84" y="276" width="392" height="108" rx="12" fill="var(--panel2)" stroke="#1f4a58"/>
+    <text x="104" y="306" font-size="17" font-weight="600">Caddy</text>
+    <text x="456" y="306" font-size="13" class="mono" text-anchor="end">access.log</text>
+    <text x="104" y="334" font-size="14" class="muted">sees every request</text>
+    <text x="104" y="358" font-size="14" class="muted">a wrong password is just <tspan class="mono" style="fill:var(--log)">401</tspan></text>
+
+    <rect x="84" y="416" width="392" height="108" rx="12" fill="var(--panel2)" stroke="#1f4a58"/>
+    <text x="104" y="446" font-size="17" font-weight="600">Jellyfin</text>
+    <text x="456" y="446" font-size="13" class="mono" text-anchor="end">log_*.log</text>
+    <text x="104" y="474" font-size="14" class="muted">knows what actually happened</text>
+    <text x="104" y="498" font-size="14" class="muted"><tspan style="fill:var(--log)">username</tspan> + <tspan style="fill:var(--log)">real IP</tspan></text>
+  </g>
+
+  <!-- ============ 2 · ENGINE ============ -->
+  <g data-step="2">
+    <path class="track t-log" d="M500 330 H596" marker-end="url(#aLog)"/>
+    <path class="track t-log" d="M500 470 H596" marker-end="url(#aLog)"/>
+    <circle r="4" fill="var(--log)"><animateMotion dur="1.6s" repeatCount="indefinite" begin="0s"><mpath href="#mL1"/></animateMotion></circle>
+    <circle r="4" fill="var(--log)"><animateMotion dur="1.6s" repeatCount="indefinite" begin="-0.8s"><mpath href="#mL2"/></animateMotion></circle>
+
+    <rect x="600" y="190" width="400" height="370" rx="18" fill="url(#gEngine)" stroke="#2c5a3e"/>
+    <text x="630" y="226" class="caps" style="fill:var(--engine)">CROWDSEC ENGINE</text>
+    <text x="630" y="252" font-size="14" class="muted">runs on the homelab</text>
+
+    <rect x="630" y="280" width="340" height="56" rx="12" fill="#0d141d" stroke="#2c5a3e"/>
+    <text x="650" y="305" font-size="15" font-weight="600">Parsers</text>
+    <text x="650" y="324" font-size="12.5" class="muted">Caddy + Jellyfin lines → fields</text>
+
+    <rect x="630" y="352" width="340" height="56" rx="12" fill="#0d141d" stroke="#2c5a3e"/>
+    <text x="650" y="377" font-size="15" font-weight="600">Scenarios</text>
+    <text x="650" y="396" font-size="12.5" class="muted">brute force · user enumeration · scanners</text>
+
+    <rect x="630" y="424" width="340" height="56" rx="12" fill="#0d141d" stroke="#2c5a3e"/>
+    <text x="650" y="449" font-size="15" font-weight="600">Local API</text>
+    <text x="650" y="468" font-size="12.5" class="muted">every decision lives here</text>
+
+    <text x="800" y="520" font-size="14" font-weight="600" text-anchor="middle" style="fill:var(--engine)">6 wrong passwords → ban decision</text>
+  </g>
+
+  <!-- ============ 3 · ENFORCEMENT: BOUNCERS ============ -->
+  <g data-step="3">
+    <path class="pull" d="M1076 330 H1004" marker-end="none"/>
+    <path class="pull" d="M1076 470 H1004"/>
+    <text x="1040" y="304" font-size="12.5" text-anchor="middle" class="muted">pull ~10 s</text>
+
+    <rect x="1080" y="190" width="460" height="370" rx="18" fill="url(#gBouncer)" stroke="#5a4830"/>
+    <g class="badge" transform="translate(1080 190)"><circle r="13" style="fill:var(--router)"/><text y="4.5">2</text></g>
+    <text x="1110" y="226" class="caps" style="fill:var(--router)">ENFORCEMENT · TWO FIREWALLS</text>
+    <text x="1110" y="252" font-size="14" class="muted">same decision, enforced twice</text>
+
+    <rect x="1104" y="276" width="412" height="108" rx="12" fill="#0d141d" stroke="#5a4830"/>
+    <text x="1124" y="306" font-size="17" font-weight="600">nftables bouncer</text>
+    <text x="1496" y="306" class="caps" font-size="10" text-anchor="end" style="fill:var(--router)">THE SERVER</text>
+    <text x="1124" y="334" font-size="14" class="muted">drops at the homelab</text>
+    <text x="1124" y="358" font-size="14" class="muted">protects one machine</text>
+
+    <rect x="1104" y="416" width="412" height="108" rx="12" fill="#0d141d" stroke="#5a4830"/>
+    <text x="1124" y="446" font-size="17" font-weight="600">MikroTik bouncer</text>
+    <text x="1496" y="446" class="caps" font-size="10" text-anchor="end" style="fill:var(--router)">THE ROUTER · NEW</text>
+    <text x="1124" y="474" font-size="14" class="muted">RAW table, before tracking and NAT</text>
+    <text x="1124" y="498" font-size="14" class="muted">protects every device, every port</text>
+  </g>
+
+  <!-- ============ 4 · INTELLIGENCE ============ -->
+  <g data-step="4">
+    <path class="track t-crowd" d="M800 620 V564" marker-end="url(#aCrowd)"/>
+    <circle r="4" fill="var(--crowd)"><animateMotion dur="1.4s" repeatCount="indefinite" begin="0s"><mpath href="#mI"/></animateMotion></circle>
+    <text x="816" y="600" font-size="12.5" style="fill:var(--crowd)">lists become decisions</text>
+
+    <rect x="60" y="620" width="1480" height="230" rx="18" fill="url(#gCrowd)" stroke="#3c3466"/>
+    <g class="badge" transform="translate(60 620)"><circle r="13" style="fill:var(--crowd)"/><text y="4.5">3</text></g>
+    <text x="90" y="656" class="caps" style="fill:var(--crowd)">INTELLIGENCE · TWO FEEDS</text>
+    <text x="90" y="682" font-size="14" class="muted">attackers we already know, before they knock</text>
+
+    <rect x="90" y="704" width="690" height="120" rx="12" fill="#0d141d" stroke="#3c3466"/>
+    <text x="112" y="734" font-size="17" font-weight="600">Community blocklist</text>
+    <text x="760" y="734" class="caps" font-size="10" text-anchor="end" style="fill:var(--crowd)">CAPI · ON BY DEFAULT</text>
+    <text x="112" y="766" font-size="26" font-weight="600" style="fill:var(--crowd)">~15,000 IPs</text>
+    <text x="112" y="796" font-size="14" class="muted">general purpose: bad somewhere, at some point</text>
+
+    <rect x="820" y="704" width="690" height="120" rx="12" fill="#0d141d" stroke="#3c3466"/>
+    <text x="842" y="734" font-size="17" font-weight="600">React2Shell campaign list</text>
+    <text x="1490" y="734" class="caps" font-size="10" text-anchor="end" style="fill:var(--crowd)">CONSOLE · SUBSCRIBED</text>
+    <text x="842" y="766" font-size="26" font-weight="600" style="fill:var(--crowd)">~50,000 IPs</text>
+    <text x="842" y="796" font-size="14" class="muted">caught sending this exact exploit · refreshed as it moves</text>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space (← goes back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(1); }
+      if (e.key === "ArrowLeft") go(-1);
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blocklists Are Decisions</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d14;
+    --panel: #101823;
+    --panel2: #152130;
+    --line: #243244;
+    --text: #e8eef5;
+    --muted: #8a9ab0;
+    --dim: #5b6b80;
+    --direct: #5fd4e6;
+    --router: #f2b45e;
+    --engine: #7aa2ff;
+    --good: #6fe08a;
+    --bad: #ff7a6b;
+    --list: #b39dff;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; display: block; }
+  text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { fill: var(--muted); }
+  .dim { fill: var(--dim); }
+  .caps { font-size: 12px; letter-spacing: 2.4px; font-weight: 600; }
+
+  .pill rect { fill: #0d141d; stroke: var(--line); }
+  .pill text { font-size: 14px; }
+  .box rect { fill: #0d141d; stroke: var(--line); }
+  .box .k { font-size: 11px; letter-spacing: 2.2px; font-weight: 600; }
+  .box .t { font-size: 20px; font-weight: 600; }
+  .box .s { font-size: 13.5px; fill: var(--muted); }
+  .field .k { font-size: 10.5px; letter-spacing: 2.2px; font-weight: 600; fill: var(--dim); }
+  .field .v { font-size: 16px; }
+  .flow { fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; }
+  .lbl { font-size: 11.5px; fill: var(--muted); }
+  .badge rect { fill: #0f1d16; stroke: #2c5a3e; }
+  .badge text { font-size: 13px; fill: var(--good); text-anchor: middle; }
+
+  [data-step] { transition: opacity .45s ease; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<svg id="root" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="A blocklist is just decisions. The CrowdSec community blocklist: every engine, including my home lab, reports the IPs it catches; CrowdSec removes the duplicates and hands about sixteen thousand IPs back to everybody. No account, no config, on by default. But it is general purpose: IPs that did something bad, somewhere, at some point, and it does not know what is being exploited today. For that there are curated blocklists, such as CVE campaign lists. Both kinds arrive as plain decisions, an IP, a reason and a duration. They land in the same Local API as CrowdSec's own detections, the same bouncers pick them up, and the same single RAW rule on the MikroTik drops them. Not a new mechanism, just more decisions.">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--dim)"/>
+    </marker>
+    <marker id="aCom" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--direct)"/>
+    </marker>
+    <marker id="aList" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="var(--list)"/>
+    </marker>
+    <linearGradient id="gCom" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132232"/><stop offset="1" stop-color="#0e1620"/>
+    </linearGradient>
+    <linearGradient id="gList" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1830"/><stop offset="1" stop-color="#10141f"/>
+    </linearGradient>
+    <linearGradient id="gRouter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231d15"/><stop offset="1" stop-color="#11161f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ============ HEADER ============ -->
+  <g>
+    <text x="60" y="78" class="caps" style="fill:var(--list)">CROWDSEC LAB · PART 2 · BLOCKLISTS</text>
+    <text x="60" y="130" font-size="42" font-weight="600" letter-spacing="-1">A blocklist is just decisions</text>
+  </g>
+
+  <!-- ============ 1 · COMMUNITY BLOCKLIST ============ -->
+  <g data-step="1">
+    <rect x="60" y="180" width="660" height="360" rx="18" fill="url(#gCom)" stroke="#23405a"/>
+    <text x="88" y="214" class="caps" style="fill:var(--direct)">COMMUNITY BLOCKLIST</text>
+
+    <!-- engines -->
+    <g class="pill"><rect x="88" y="236" width="180" height="36" rx="10"/><text x="108" y="259" class="muted">engine</text></g>
+    <g class="pill"><rect x="88" y="282" width="180" height="36" rx="10"/><text x="108" y="305" class="muted">engine</text></g>
+    <g class="pill"><rect x="88" y="328" width="180" height="36" rx="10"/><text x="108" y="351" class="muted">engine</text></g>
+    <g class="pill"><rect x="88" y="374" width="180" height="36" rx="10" style="stroke:var(--direct);stroke-opacity:.7"/><text x="108" y="397" font-weight="600">my home lab</text></g>
+
+    <path class="flow" d="M270 254 C 300 254, 300 300, 326 312" marker-end="url(#arr)"/>
+    <path class="flow" d="M270 300 C 296 300, 300 314, 326 318" marker-end="url(#arr)"/>
+    <path class="flow" d="M270 346 C 296 346, 300 330, 326 326" marker-end="url(#arr)"/>
+    <path class="flow" d="M270 392 C 300 392, 300 344, 326 332" marker-end="url(#arr)"/>
+    <text x="417" y="404" class="lbl" text-anchor="middle">every engine reports what it catches</text>
+
+    <g class="box">
+      <rect x="332" y="262" width="170" height="120" rx="14"/>
+      <text x="352" y="292" class="k" style="fill:var(--engine)">CROWDSEC</text>
+      <text x="352" y="324" font-size="17" font-weight="600">removes</text>
+      <text x="352" y="348" font-size="17" font-weight="600">duplicates</text>
+    </g>
+
+    <path class="flow" d="M506 322 H540" style="stroke:var(--direct)" marker-end="url(#aCom)"/>
+    <rect x="546" y="282" width="152" height="80" rx="14" fill="#0d1a24" stroke="var(--direct)" stroke-opacity=".8"/>
+    <text x="566" y="318" font-size="26" font-weight="700" style="fill:var(--direct)">~16,000</text>
+    <text x="566" y="342" font-size="13" class="muted">IPs to everybody</text>
+
+    <g class="badge">
+      <rect x="88" y="430" width="128" height="30" rx="15"/><text x="152" y="450">✓ no account</text>
+      <rect x="226" y="430" width="120" height="30" rx="15"/><text x="286" y="450">✓ no config</text>
+      <rect x="356" y="430" width="152" height="30" rx="15"/><text x="432" y="450">✓ on by default</text>
+    </g>
+  </g>
+
+  <!-- ============ 2 · BUT GENERAL PURPOSE ============ -->
+  <g data-step="2">
+    <line x1="88" y1="478" x2="692" y2="478" stroke="var(--line)"/>
+    <text x="88" y="504" font-size="15" class="muted">General purpose: bad somewhere, at some point.</text>
+    <text x="88" y="528" font-size="15"><tspan style="fill:var(--bad)" font-weight="700">✗ </tspan>doesn't know what's being exploited <tspan font-style="italic">today</tspan></text>
+  </g>
+
+  <!-- ============ 3 · CURATED BLOCKLISTS ============ -->
+  <g data-step="3">
+    <rect x="60" y="570" width="660" height="170" rx="18" fill="url(#gList)" stroke="#3c3466"/>
+    <text x="88" y="604" class="caps" style="fill:var(--list)">CURATED BLOCKLISTS</text>
+    <text x="88" y="640" font-size="20" font-weight="600">What's being exploited today</text>
+    <g class="pill">
+      <rect x="88" y="664" width="170" height="36" rx="18" style="stroke:var(--list);stroke-opacity:.6"/><text x="173" y="687" text-anchor="middle">CVE campaigns</text>
+      <rect x="270" y="664" width="110" height="36" rx="18" style="stroke:var(--list);stroke-opacity:.6"/><text x="325" y="687" text-anchor="middle">botnets</text>
+      <rect x="392" y="664" width="150" height="36" rx="18" style="stroke:var(--list);stroke-opacity:.6"/><text x="467" y="687" text-anchor="middle">Tor exit nodes</text>
+      <rect x="554" y="664" width="140" height="36" rx="18" style="stroke:var(--list);stroke-opacity:.6"/><text x="624" y="687" text-anchor="middle">open proxies</text>
+    </g>
+  </g>
+
+  <!-- ============ 4 · JUST DECISIONS ============ -->
+  <g data-step="4">
+    <path class="flow" d="M722 322 C 760 322, 760 250, 796 250" style="stroke:var(--direct)" marker-end="url(#aCom)"/>
+    <path class="flow" d="M722 655 C 766 655, 760 274, 796 274" style="stroke:var(--list)" marker-end="url(#aList)"/>
+
+    <rect x="800" y="180" width="740" height="160" rx="18" fill="var(--panel)" stroke="var(--router)" stroke-opacity=".6"/>
+    <text x="828" y="214" class="caps" style="fill:var(--router)">EACH ENTRY IS A DECISION</text>
+    <g class="field">
+      <rect x="828" y="230" width="210" height="66" rx="10" fill="#0d141d" stroke="var(--line)"/>
+      <text x="846" y="254" class="k">IP</text>
+      <text x="846" y="282" class="v mono">198.51.100.23</text>
+      <rect x="1050" y="230" width="270" height="66" rx="10" fill="#0d141d" stroke="var(--line)"/>
+      <text x="1068" y="254" class="k">REASON</text>
+      <text x="1068" y="282" class="v mono">React2Shell list</text>
+      <rect x="1332" y="230" width="180" height="66" rx="10" fill="#0d141d" stroke="var(--line)"/>
+      <text x="1350" y="254" class="k">DURATION</text>
+      <text x="1350" y="282" class="v mono">48h</text>
+    </g>
+    <text x="828" y="322" font-size="13.5" class="muted">Same shape as a ban CrowdSec made itself.</text>
+  </g>
+
+  <!-- ============ 5 · SAME PATH ============ -->
+  <g data-step="5">
+    <path class="flow" d="M1170 342 V374" marker-end="url(#arr)"/>
+    <g class="box">
+      <rect x="800" y="380" width="740" height="80" rx="14"/>
+      <text x="828" y="410" class="k" style="fill:var(--engine)">SAME LOCAL API</text>
+      <text x="828" y="440" class="s">where your own detections already land</text>
+    </g>
+
+    <path class="flow" d="M970 462 V494" marker-end="url(#arr)"/>
+    <path class="flow" d="M1370 462 V494" marker-end="url(#arr)"/>
+    <g class="box">
+      <rect x="800" y="500" width="340" height="96" rx="14"/>
+      <text x="828" y="530" class="k" style="fill:var(--direct)">SAME BOUNCER</text>
+      <text x="828" y="562" class="t">nftables</text>
+      <text x="828" y="584" class="s">home lab server</text>
+    </g>
+    <g class="box">
+      <rect x="1200" y="500" width="340" height="96" rx="14"/>
+      <text x="1228" y="530" class="k" style="fill:var(--router)">SAME BOUNCER</text>
+      <text x="1228" y="562" class="t">MikroTik</text>
+      <text x="1228" y="584" class="s">router</text>
+    </g>
+
+    <path class="flow" d="M1370 598 V630" marker-end="url(#arr)"/>
+    <g class="box">
+      <rect x="1200" y="636" width="340" height="104" rx="14" style="fill:url(#gRouter);stroke:#5a4830"/>
+      <rect x="1208" y="652" width="8" height="72" rx="4" fill="var(--bad)"/>
+      <text x="1228" y="666" class="k" style="fill:var(--router)">SAME RAW RULE</text>
+      <text x="1228" y="698" class="t">one rule drops them all</text>
+      <text x="1228" y="722" class="s mono">drop · crowdsec-banned</text>
+    </g>
+    <text x="828" y="680" font-size="15" class="muted">No new rule.</text>
+    <text x="828" y="704" font-size="15" class="muted">No restart.</text>
+
+    <rect x="60" y="770" width="1480" height="64" rx="14" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="800" y="809" font-size="19" text-anchor="middle"><tspan class="muted">Not a new mechanism. </tspan><tspan font-weight="600">Just more decisions.</tspan></text>
+  </g>
+</svg>
+
+<script>
+  // Default: everything visible. Add ?build to reveal one step per click / → / space / Enter / PageDown (← / PageUp / Backspace go back).
+  (function () {
+    const svg = document.getElementById("root");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    if (!new URLSearchParams(location.search).has("build")) return;
+    const groups = [...document.querySelectorAll("[data-step]")];
+    const max = Math.max(...groups.map(g => +g.dataset.step));
+    let step = 0;
+    const render = () => groups.forEach(g => g.classList.toggle("hidden", +g.dataset.step > step));
+    const go = d => { step = Math.min(max, Math.max(0, step + d)); render(); };
+    addEventListener("click", () => go(1));
+    addEventListener("keydown", e => {
+      if (["ArrowRight", " ", "Enter", "PageDown"].includes(e.key)) { e.preventDefault(); go(1); }
+      if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(-1); }
+    });
+    render();
+  })();
+</script>
+</body>
+</html>
