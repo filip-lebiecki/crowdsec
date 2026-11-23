@@ -116,7 +116,7 @@ Replace these with your own values:
 | [`routeros-bouncer/docker-compose.yaml`](routeros-bouncer/docker-compose.yaml) | Part 2: [cs-routeros-bouncer](https://github.com/jmrplens/cs-routeros-bouncer), pushes decisions to the MikroTik router |
 | [`routeros-bouncer/.env.example`](routeros-bouncer/.env.example) | Template for the router password and bouncer API key (copy to `.env`, `chmod 600`) |
 | `logs/` | Caddy writes `access.log` here; CrowdSec reads it |
-| [`diagrams/`](diagrams/) | Architecture diagrams used in the videos (open the `.html` files in a browser); Part 2 in [`diagrams/part2/`](diagrams/part2/) |
+| [`diagrams/`](diagrams/) | Architecture diagrams used in the videos (open the `.html` files in a browser): [`part1/`](diagrams/part1/), [`part2/`](diagrams/part2/) |
 
 ---
 
